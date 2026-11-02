@@ -9,6 +9,21 @@
 | `docs/02-khao-sat-subradar.md` | Khảo sát Sub Radar (đã xác minh / suy luận) |
 | `docs/*.pptx`, `docs/*.docx` | Slide giới thiệu đề tài, Use Case, kế hoạch nhóm |
 
+## Thiết kế (Figma)
+
+File Figma: **[SubTrack – Luồng màn hình, Wireframe, Mockup](https://www.figma.com/design/DrSCH8Nb4Zg7jVJkkWBEIu)**
+
+Toàn bộ nằm trên trang **SubTrack** (gói Figma Starter giới hạn số trang), chia thành các vùng:
+
+| Vùng | Nội dung |
+|---|---|
+| 1. Luồng màn hình | 11 màn hình thu nhỏ nối bằng mũi tên ghi thao tác (Bắt đầu, Nút + Thêm gói, Chạm vào gói, Biểu tượng thùng rác, các tab…) và các thành phần Android bên ngoài (Lịch, trình duyệt, chia sẻ, chọn nơi lưu CSV, xin quyền thông báo, WorkManager) |
+| 2. Wireframe | Bản thang xám của 11 màn hình |
+| 3. Mockup | 11 màn hình có màu theo giao diện thật của app (Material 3, tiếng Việt, dữ liệu là 5 gói mẫu của app) |
+| Components | Biến màu lấy từ `ui/theme/Theme.kt`, kiểu chữ Roboto, 27 icon Material và các component: thanh trạng thái, thanh điều hướng, dòng gói đăng ký, chip, ô nhập liệu, nút, dòng cài đặt, nút nổi |
+
+Danh sách màn hình: M1 Giới thiệu lần đầu · M2 Gói đăng ký · M3 Gói đăng ký – trống · M4 Thêm gói – lỗi kiểm tra dữ liệu · M5 Sửa gói (form đầy đủ) · M6 Hộp thoại xác nhận xóa · M7 Tổ chức – Tag · M8 Hộp thoại tạo tag · M9 Báo cáo chi phí · M10 Cài đặt · M11 Thông báo nhắc hạn.
+
 ## Chạy bằng Android Studio
 
 1. Mở Android Studio → **File › Open** → chọn thư mục `android` bên trong repo (không chọn thư mục gốc của repo).
