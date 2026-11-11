@@ -1,6 +1,6 @@
 @file:OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 
-package com.nhom4.subtrack.ui.organize
+package com.nhom4.subtrack.ui.tags
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -25,10 +25,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.outlined.Delete
-import androidx.compose.material.icons.outlined.Devices
 import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.Label
-import androidx.compose.material.icons.outlined.Category
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -38,19 +36,15 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.PrimaryTabRow
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -68,18 +62,16 @@ import com.nhom4.subtrack.data.Tag
 import com.nhom4.subtrack.ui.AppViewModels
 import com.nhom4.subtrack.ui.EmptyState
 import com.nhom4.subtrack.ui.LoadingState
-import com.nhom4.subtrack.ui.formatMoney
-import com.nhom4.subtrack.ui.label
 
 val TAG_COLORS = listOf(
     0xFFE5484D, 0xFFF76B15, 0xFFF2A900, 0xFF30A46C, 0xFF12A594,
     0xFF0090FF, 0xFF6C4CF1, 0xFFD6409F, 0xFF8B8D98,
 )
 
+/** Màn hình Tag: danh sách tag, nút + để thêm, biểu tượng bút để sửa, thùng rác để xóa. */
 @Composable
-fun OrganizeScreen(vm: OrganizeViewModel = viewModel(factory = AppViewModels.Factory)) {
+fun TagsScreen(vm: TagsViewModel = viewModel(factory = AppViewModels.Factory)) {
     val state by vm.state.collectAsStateWithLifecycle()
-    var tab by rememberSaveable { mutableIntStateOf(0) }
     var editing by remember { mutableStateOf<Tag?>(null) }
     var creating by remember { mutableStateOf(false) }
     var deleting by remember { mutableStateOf<Tag?>(null) }
@@ -87,24 +79,14 @@ fun OrganizeScreen(vm: OrganizeViewModel = viewModel(factory = AppViewModels.Fac
     Scaffold(
         contentWindowInsets = WindowInsets(0),
         topBar = {
-            Column {
-                TopAppBar(
-                    title = { Text(stringResource(R.string.organize_title), fontWeight = FontWeight.Bold) },
-                    windowInsets = WindowInsets(0),
-                )
-                PrimaryTabRow(selectedTabIndex = tab) {
-                    listOf(R.string.organize_tab_tags, R.string.organize_tab_platforms, R.string.organize_tab_categories)
-                        .forEachIndexed { i, label ->
-                            Tab(selected = tab == i, onClick = { tab = i }, text = { Text(stringResource(label), maxLines = 1) })
-                        }
-                }
-            }
+            TopAppBar(
+                title = { Text(stringResource(R.string.tags_title), fontWeight = FontWeight.Bold) },
+                windowInsets = WindowInsets(0),
+            )
         },
         floatingActionButton = {
-            if (tab == 0) {
-                FloatingActionButton(onClick = { creating = true }) {
-                    Icon(Icons.Filled.Add, stringResource(R.string.tag_dialog_add))
-                }
+            FloatingActionButton(onClick = { creating = true }) {
+                Icon(Icons.Filled.Add, stringResource(R.string.tag_dialog_add))
             }
         },
     ) { padding ->
@@ -117,44 +99,16 @@ fun OrganizeScreen(vm: OrganizeViewModel = viewModel(factory = AppViewModels.Fac
             contentPadding = PaddingValues(16.dp, 16.dp, 16.dp, 96.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            when (tab) {
-                0 -> if (state.tags.isEmpty()) {
-                    item { EmptyState(Icons.Outlined.Label, stringResource(R.string.tags_empty), null) }
-                } else items(state.tags, key = { it.tag.id }) { row ->
-                    RowCard(
-                        dot = Color(row.tag.color),
-                        title = row.tag.name,
-                        subtitle = pluralStringResource(R.plurals.count_subscriptions, row.count, row.count),
-                    ) {
-                        IconButton(onClick = { editing = row.tag }) { Icon(Icons.Outlined.Edit, stringResource(R.string.action_edit)) }
-                        IconButton(onClick = { deleting = row.tag }) { Icon(Icons.Outlined.Delete, stringResource(R.string.action_delete)) }
-                    }
-                }
-                1 -> {
-                    item { Hint(stringResource(R.string.platforms_hint)) }
-                    if (state.platforms.isEmpty()) {
-                        item { EmptyState(Icons.Outlined.Devices, stringResource(R.string.organize_nothing), null) }
-                    } else items(state.platforms, key = { it.platform.key }) { row ->
-                        RowCard(null, stringResource(row.platform.label), pluralStringResource(R.plurals.count_subscriptions, row.count, row.count))
-                    }
-                }
-                else -> {
-                    item { Hint(stringResource(R.string.categories_hint)) }
-                    if (state.categories.isEmpty()) {
-                        item { EmptyState(Icons.Outlined.Category, stringResource(R.string.organize_nothing), null) }
-                    } else items(state.categories, key = { it.category.key }) { row ->
-                        RowCard(
-                            dot = Color(row.category.color),
-                            title = stringResource(row.category.label),
-                            subtitle = pluralStringResource(R.plurals.count_subscriptions, row.count, row.count),
-                        ) {
-                            Text(
-                                stringResource(R.string.per_month, formatMoney(row.monthly, state.currency)),
-                                fontWeight = FontWeight.SemiBold,
-                                modifier = Modifier.padding(end = 8.dp),
-                            )
-                        }
-                    }
+            if (state.tags.isEmpty()) {
+                item { EmptyState(Icons.Outlined.Label, stringResource(R.string.tags_empty), null) }
+            } else items(state.tags, key = { it.tag.id }) { row ->
+                RowCard(
+                    dot = Color(row.tag.color),
+                    title = row.tag.name,
+                    subtitle = pluralStringResource(R.plurals.count_subscriptions, row.count, row.count),
+                ) {
+                    IconButton(onClick = { editing = row.tag }) { Icon(Icons.Outlined.Edit, stringResource(R.string.action_edit)) }
+                    IconButton(onClick = { deleting = row.tag }) { Icon(Icons.Outlined.Delete, stringResource(R.string.action_delete)) }
                 }
             }
         }
@@ -189,11 +143,6 @@ fun OrganizeScreen(vm: OrganizeViewModel = viewModel(factory = AppViewModels.Fac
             dismissButton = { TextButton(onClick = { deleting = null }) { Text(stringResource(R.string.action_cancel)) } },
         )
     }
-}
-
-@Composable
-private fun Hint(text: String) {
-    Text(text, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
 }
 
 @Composable

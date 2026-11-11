@@ -2,10 +2,6 @@
 
 package com.nhom4.subtrack.ui.edit
 
-import android.content.ActivityNotFoundException
-import android.content.Context
-import android.content.Intent
-import android.provider.CalendarContract
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
@@ -24,7 +20,6 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.automirrored.filled.OpenInNew
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.Check
@@ -63,7 +58,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
@@ -72,7 +66,6 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
-import androidx.core.net.toUri
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.nhom4.subtrack.R
@@ -87,12 +80,10 @@ import com.nhom4.subtrack.ui.LoadingState
 import com.nhom4.subtrack.ui.SectionHeader
 import com.nhom4.subtrack.ui.SelectField
 import com.nhom4.subtrack.ui.formatDate
-import com.nhom4.subtrack.ui.formatMoney
 import com.nhom4.subtrack.ui.label
-import com.nhom4.subtrack.ui.organize.TagDialog
+import com.nhom4.subtrack.ui.tags.TagDialog
 import kotlinx.coroutines.launch
 import java.time.Instant
-import java.time.ZoneId
 import java.time.ZoneOffset
 
 private val REMIND_OPTIONS: List<Int?> = listOf(null, 0, 1, 3, 7, 30)
@@ -169,7 +160,6 @@ fun EditScreen(
 private fun EditForm(vm: EditViewModel, modifier: Modifier) {
     val f = vm.form
     val e = vm.errors
-    val context = LocalContext.current
     val tags by vm.tags.collectAsStateWithLifecycle()
     var pickDate by remember { mutableStateOf(false) }
     var newTag by remember { mutableStateOf(false) }
@@ -226,13 +216,6 @@ private fun EditForm(vm: EditViewModel, modifier: Modifier) {
                 onSelect = { c -> vm.update { it.copy(cycle = c) } },
                 modifier = Modifier.fillMaxWidth(),
             )
-            vm.monthlyPreview()?.let {
-                Text(
-                    stringResource(R.string.monthly_equivalent, formatMoney(it, f.currency)),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
             OutlinedButton(onClick = { pickDate = true }, modifier = Modifier.fillMaxWidth()) {
                 Icon(Icons.Filled.CalendarMonth, null, Modifier.size(18.dp))
                 Spacer(Modifier.size(8.dp))
@@ -269,18 +252,6 @@ private fun EditForm(vm: EditViewModel, modifier: Modifier) {
                 onSelect = { d -> vm.update { it.copy(remindDaysBefore = d) } },
                 modifier = Modifier.fillMaxWidth(),
             )
-            if (!vm.remindersEnabled) {
-                Text(stringResource(R.string.reminders_off_hint), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
-            }
-            OutlinedButton(
-                onClick = { addToCalendar(context, f) },
-                enabled = f.name.isNotBlank(),
-                modifier = Modifier.fillMaxWidth(),
-            ) {
-                Icon(Icons.Filled.CalendarMonth, null, Modifier.size(18.dp))
-                Spacer(Modifier.size(8.dp))
-                Text(stringResource(R.string.add_to_calendar))
-            }
         }
 
         SectionHeader(stringResource(R.string.section_organization))
@@ -334,13 +305,6 @@ private fun EditForm(vm: EditViewModel, modifier: Modifier) {
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri),
                 modifier = Modifier.fillMaxWidth(),
             )
-            if (f.url.isNotBlank() && e.url == null) {
-                TextButton(onClick = { openUrl(context, f.url.trim()) }) {
-                    Icon(Icons.AutoMirrored.Filled.OpenInNew, null, Modifier.size(18.dp))
-                    Spacer(Modifier.size(6.dp))
-                    Text(stringResource(R.string.open_url))
-                }
-            }
             OutlinedTextField(
                 value = f.notes,
                 onValueChange = { v -> vm.update { it.copy(notes = v) } },
@@ -401,35 +365,4 @@ private fun remindLabel(days: Int?): String = when (days) {
     null -> stringResource(R.string.remind_none)
     0 -> stringResource(R.string.remind_same_day)
     else -> pluralStringResource(R.plurals.remind_days_before, days, days)
-}
-
-private fun addToCalendar(context: Context, f: EditForm) {
-    val start = f.nextPaymentDate.atTime(9, 0).atZone(ZoneId.systemDefault()).toInstant().toEpochMilli()
-    val rule = when (f.cycle) {
-        BillingCycle.WEEKLY -> "FREQ=WEEKLY"
-        BillingCycle.MONTHLY -> "FREQ=MONTHLY"
-        BillingCycle.QUARTERLY -> "FREQ=MONTHLY;INTERVAL=3"
-        BillingCycle.YEARLY -> "FREQ=YEARLY"
-    }
-    val amountText = f.amount.ifBlank { "0" } + " " + f.currency.code
-    val intent = Intent(Intent.ACTION_INSERT)
-        .setData(CalendarContract.Events.CONTENT_URI)
-        .putExtra(CalendarContract.Events.TITLE, context.getString(R.string.calendar_event_title, f.name.trim()))
-        .putExtra(CalendarContract.Events.DESCRIPTION, context.getString(R.string.calendar_event_desc, amountText, context.getString(f.cycle.label)))
-        .putExtra(CalendarContract.EXTRA_EVENT_BEGIN_TIME, start)
-        .putExtra(CalendarContract.EXTRA_EVENT_ALL_DAY, true)
-        .putExtra(CalendarContract.Events.RRULE, rule)
-    try {
-        context.startActivity(intent)
-    } catch (_: ActivityNotFoundException) {
-        android.widget.Toast.makeText(context, R.string.no_calendar_app, android.widget.Toast.LENGTH_SHORT).show()
-    }
-}
-
-private fun openUrl(context: Context, url: String) {
-    try {
-        context.startActivity(Intent(Intent.ACTION_VIEW, url.toUri()))
-    } catch (_: ActivityNotFoundException) {
-        android.widget.Toast.makeText(context, R.string.no_browser, android.widget.Toast.LENGTH_SHORT).show()
-    }
 }
