@@ -1,5 +1,6 @@
 package com.nhom4.subtrack.data
 
+import android.database.sqlite.SQLiteConstraintException
 import com.nhom4.subtrack.domain.BillingMath
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -64,11 +65,15 @@ class SubscriptionRepository(private val db: SubTrackDatabase) {
         UndoToken(sub.id, sub.status, sub.nextPaymentDate, sub.snoozedUntil, sub.lastNotifiedOn, insertedPaymentId)
 
     /** Ghi một kỳ (PAID/SKIPPED), tiến ngày một chu kỳ, xóa trạng thái nhắc. null nếu [period] không phải kỳ hiện tại. */
-    private suspend fun record(id: Long, period: LocalDate, kind: PaymentKind, paidDate: LocalDate?, amount: Double?): UndoToken? =
-        withContext(Dispatchers.IO) {
-            val sub = db.getSubscriptions().firstOrNull { it.id == id }
-            if (sub == null || period != sub.nextPaymentDate) return@withContext null
+    private suspend fun record(
+        id: Long, period: LocalDate, kind: PaymentKind, paidDate: LocalDate?, amountOf: (Subscription) -> Double?,
+    ): UndoToken? = withContext(Dispatchers.IO) {
+        try {
+            // Đọc, kiểm tra kỳ và ghi trong cùng một giao dịch để hai lần bấm đồng thời không cùng vượt qua kiểm tra.
             db.inTransaction {
+                val sub = db.getSubscriptions().firstOrNull { it.id == id }
+                if (sub == null || period != sub.nextPaymentDate) return@inTransaction null
+                val amount = amountOf(sub)
                 val pid = db.insertPayment(
                     Payment(
                         subscriptionId = id, subscriptionName = sub.name, category = sub.category, periodDate = period,
@@ -78,15 +83,16 @@ class SubscriptionRepository(private val db: SubTrackDatabase) {
                 db.updateNextPaymentDate(id, BillingMath.advance(period, sub.cycle))
                 db.setReminderState(id, null, null)
                 token(sub, pid)
-            }.also { refresh() }
-        }
-
-    suspend fun markPaid(id: Long, period: LocalDate, paidDate: LocalDate = LocalDate.now(), amount: Double? = null): UndoToken? {
-        val price = amount ?: withContext(Dispatchers.IO) { db.getSubscriptions().firstOrNull { it.id == id }?.amount } ?: return null
-        return record(id, period, PaymentKind.PAID, paidDate, price)
+            }
+        } catch (e: SQLiteConstraintException) {
+            null // kỳ này đã có dòng: coi như bấm trùng
+        }.also { refresh() }
     }
 
-    suspend fun skip(id: Long, period: LocalDate): UndoToken? = record(id, period, PaymentKind.SKIPPED, null, null)
+    suspend fun markPaid(id: Long, period: LocalDate, paidDate: LocalDate = LocalDate.now(), amount: Double? = null): UndoToken? =
+        record(id, period, PaymentKind.PAID, paidDate) { amount ?: it.amount }
+
+    suspend fun skip(id: Long, period: LocalDate): UndoToken? = record(id, period, PaymentKind.SKIPPED, null) { null }
 
     suspend fun snooze(id: Long, days: Int, today: LocalDate = LocalDate.now()): UndoToken? = withContext(Dispatchers.IO) {
         val sub = db.getSubscriptions().firstOrNull { it.id == id } ?: return@withContext null

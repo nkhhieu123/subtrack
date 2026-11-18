@@ -2,6 +2,9 @@ package com.nhom4.subtrack.data
 
 import android.content.Context
 import androidx.test.core.app.ApplicationProvider
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -62,6 +65,15 @@ class PaymentActionsTest {
         val id = add()
         assertNotNull(repo.markPaid(id, nov20))
         assertNull(repo.markPaid(id, nov20))
+        assertEquals(1, db.getPayments().size)
+        assertEquals(dec20, get(id).nextPaymentDate)
+    }
+
+    @Test
+    fun markPaid_concurrentCalls_oneRowNoThrow() = runBlocking {
+        val id = add()
+        val results = (1..2).map { async(Dispatchers.IO) { repo.markPaid(id, nov20) } }.awaitAll()
+        assertEquals(1, results.count { it != null })
         assertEquals(1, db.getPayments().size)
         assertEquals(dec20, get(id).nextPaymentDate)
     }
