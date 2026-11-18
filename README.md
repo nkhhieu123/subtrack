@@ -53,16 +53,18 @@ Chạy kiểm thử: `gradlew.bat testDebugUnitTest lintDebug`.
 ## Đã kiểm thử
 
 - `assembleDebug`: build thành công.
-- `testDebugUnitTest`: 42/42 test qua, gồm: quy đổi chi phí theo chu kỳ, tổng chi theo tiền tệ, cuộn ngày thanh toán, cuối tháng, mức báo gia hạn, đọc số tiền VND/USD, kiểm tra URL, điều kiện nhắc hạn, số liệu báo cáo, CSV, định dạng tiền tiếng Việt (BillingMathTest: 24); hành động thanh toán như Đã trả, Bỏ qua, Nhắc lại sau, Hoàn tác, Kích hoạt lại và trạng thái nhắc hạn (PaymentActionsTest: 11); cơ sở dữ liệu SQLite, lịch sử chi trả và nâng cấp schema từ v1/v3 lên v4 (SubTrackDatabaseTest: 7). Unit test đã phát hiện và giúp sửa một lỗi đọc số tiền (`1.2.3.4` từng được chấp nhận).
+- `testDebugUnitTest`: 43/43 test qua, gồm: quy đổi chi phí theo chu kỳ, tổng chi theo tiền tệ, cuộn ngày thanh toán, cuối tháng, mức báo gia hạn, đọc số tiền VND/USD, kiểm tra URL, điều kiện nhắc hạn, nội dung thông báo theo số ngày còn lại, số liệu báo cáo, CSV, định dạng tiền tiếng Việt (BillingMathTest: 25); hành động thanh toán như Đã trả, Bỏ qua, Nhắc lại sau, Hoàn tác, Kích hoạt lại và trạng thái nhắc hạn (PaymentActionsTest: 11); cơ sở dữ liệu SQLite, lịch sử chi trả và nâng cấp schema từ v1/v3 lên v4 (SubTrackDatabaseTest: 7). Unit test đã phát hiện và giúp sửa một lỗi đọc số tiền (`1.2.3.4` từng được chấp nhận).
 - `lintDebug`: không còn lỗi.
+- **Chạy thử trên máy ảo** (AVD API 36.1): nâng cấp CSDL giữ nguyên gói cũ; màn hình xem gói; Đã trả (ghi lịch sử, chuyển kỳ, snackbar Hoàn tác); hoàn tác bằng nút ↶ trong lịch sử; mục "Chi thực tế" trong Báo cáo; thông báo nhắc hạn có nút "Đã trả" (bấm xong thông báo biến mất, gói chuyển kỳ); chạm vào thông báo mở đúng màn hình của gói; kiểm tra lại trong cùng ngày không nhắc trùng. Không có lỗi crash trong logcat.
 
 ## Chưa hoàn thành / giới hạn
 
-- **Chưa chạy thử trên máy ảo hay điện thoại**: theo yêu cầu, nhóm tự mở app vì máy không đủ bộ nhớ chạy emulator cùng lúc. Vì vậy điều hướng, giao diện tiếng Việt trên màn hình nhỏ và lỗi runtime chưa được kiểm tra thực tế; cần chạy thử theo hướng dẫn ở trên.
+- **Chưa chạy thử trên máy thật**, và trên máy ảo chưa thử: thông báo khi gói đã quá hạn, nút "Nhắc sau 1 ngày", "Bỏ qua kỳ này", xóa gói đã có lịch sử chi trả (đã có unit test cho trường hợp này).
+- **Lịch sử chi trả** chỉ có từ khi người dùng bấm "Đã trả"; các kỳ trước khi cài bản này và các kỳ không được xác nhận không có trong "Chi thực tế". Lần đầu chạy sau khi nâng cấp, gói đang trong khoảng nhắc có thể được nhắc thêm một lần.
 - **Không đồng bộ đám mây / không có tài khoản**: Sub Radar dùng iCloud. Kế hoạch nhóm xếp đăng nhập vào phần mở rộng; muốn làm thì cần một dự án Firebase (file `google-services.json`, bật Authentication và Firestore).
 - **Không quy đổi tỷ giá**: báo cáo chỉ cộng các gói cùng một tiền tệ, vì quy đổi cần API tỷ giá bên ngoài.
 - **Nền tảng cố định**: có 12 nền tảng có sẵn, chưa cho tự tạo nền tảng như Sub Radar.
-- **Xuất dữ liệu** chỉ hỗ trợ CSV (Sub Radar có thêm JSON và văn bản thuần); chưa có nhập lại dữ liệu từ file.
+- **Xuất dữ liệu** chỉ hỗ trợ CSV (Sub Radar có thêm JSON và văn bản thuần), chưa kèm lịch sử chi trả; chưa có nhập lại dữ liệu từ file.
 - **Thông báo hằng ngày** chạy theo lịch của WorkManager nên giờ nhắc không cố định chính xác.
 
 ## API, biến môi trường, quyền
