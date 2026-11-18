@@ -231,7 +231,7 @@
     <string name="demo_note">Gói mẫu để demo</string>
     <string name="clear_data">Xóa toàn bộ dữ liệu</string>
     <string name="clear_confirm_title">Xóa toàn bộ dữ liệu?</string>
-    <string name="clear_confirm_body">Mọi gói đăng ký và tag sẽ bị xóa. Không thể hoàn tác.</string>
+    <string name="clear_confirm_body">Mọi gói đăng ký, tag và lịch sử chi trả sẽ bị xóa. Không thể hoàn tác.</string>
     <string name="cleared">Đã xóa toàn bộ dữ liệu</string>
     <string name="settings_about">Giới thiệu</string>
     <string name="about_version">Phiên bản %1$s</string>

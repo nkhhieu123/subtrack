@@ -39,12 +39,14 @@ Chạy kiểm thử: `gradlew.bat testDebugUnitTest lintDebug`.
 - **Gói đăng ký**: thẻ tổng quan (chi phí tháng ước tính, số gói đang hoạt động, số gói đến hạn trong 7 ngày); danh sách có vạch màu báo gia hạn (đỏ ≤ 7 ngày, cam ≤ 30 ngày), chip tag và nền tảng; tìm theo tên, tag, nền tảng, danh mục; lọc theo trạng thái và danh mục; sắp xếp theo ngày, chi phí, tên; trạng thái đang tải / lỗi / trống / không có kết quả.
 - **Thêm / sửa / xóa gói**: tên, số tiền, tiền tệ (VND/USD/EUR), chu kỳ (tuần/tháng/quý/năm), ngày thanh toán kế tiếp (DatePicker tiếng Việt), danh mục, trạng thái (đang hoạt động / tạm dừng / đã hủy), nhắc trước (không nhắc, đúng ngày, 1/3/7/30 ngày), tag (tạo tag ngay trong form), nền tảng, liên kết quản lý (mở trình duyệt), ghi chú. Có kiểm tra dữ liệu (tên bắt buộc, tối đa 60 ký tự, số tiền hợp lệ và không âm, URL phải là http/https), hộp thoại xác nhận xóa, thông báo đã lưu / đã xóa.
 - **Thêm vào Lịch**: mở ứng dụng Lịch của Android với sự kiện lặp theo chu kỳ.
-- **Tự cập nhật ngày**: gói đang hoạt động đã qua ngày thanh toán tự chuyển sang kỳ kế tiếp khi mở app.
+- **Màn hình xem gói**: chạm vào gói để xem thẻ tổng quan, lịch sử chi trả và mục "Kỳ này" với các thao tác Đã trả, Bỏ qua kỳ này, Nhắc lại sau, Đã hủy; có Hoàn tác, và Kích hoạt lại (chọn ngày thanh toán mới).
+- **Xác nhận từng kỳ**: app không tự chuyển ngày thanh toán; gói quá hạn hiển thị "Chờ xác nhận" cho đến khi người dùng xác nhận.
+- **Lịch sử chi trả**: mỗi lần đánh dấu đã trả được lưu lại; xóa gói vẫn giữ lịch sử chi tiêu trong Báo cáo.
 - **Tổ chức**: tạo / sửa / xóa tag có màu (chặn trùng tên); thống kê số gói theo nền tảng; chi phí tháng theo danh mục.
-- **Báo cáo**: tổng chi phí mỗi tuần / tháng / quý / năm; biểu đồ tròn cơ cấu chi phí (gộp "Các gói khác" khi nhiều hơn 6 gói); chi phí theo danh mục; 3 gói tốn kém nhất; chọn tiền tệ báo cáo (không quy đổi tỷ giá, có ghi chú số gói bị loại).
-- **Nhắc hạn**: WorkManager kiểm tra mỗi ngày và ngay sau khi lưu gói, gửi thông báo cục bộ theo số ngày nhắc của từng gói, mỗi kỳ chỉ nhắc một lần; xin quyền thông báo trên Android 13+; nút gửi thông báo thử.
+- **Báo cáo**: tổng chi phí mỗi tuần / tháng / quý / năm; mục "Chi thực tế" (tháng này, năm nay, 6 tháng gần nhất, theo danh mục trong 12 tháng) bên cạnh mục "Ước tính"; biểu đồ tròn cơ cấu chi phí (gộp "Các gói khác" khi nhiều hơn 6 gói); chi phí theo danh mục; 3 gói tốn kém nhất; chọn tiền tệ báo cáo (không quy đổi tỷ giá, có ghi chú số gói bị loại).
+- **Nhắc hạn**: WorkManager kiểm tra mỗi ngày và ngay sau khi lưu gói; nhắc một lần khi vào khoảng nhắc, một lần vào đúng ngày đến hạn, và mỗi 3 ngày khi quá hạn; có nhắc lại sau; thông báo có nút "Đã trả" và "Nhắc sau 1 ngày"; xin quyền thông báo trên Android 13+; nút gửi thông báo thử.
 - **Cài đặt**: tiền tệ mặc định, bật/tắt nhắc hạn, xuất CSV (UTF-8, mở được bằng Excel), chia sẻ báo cáo chi phí dạng văn bản, thêm 5 gói mẫu (ghi chú rõ "Gói mẫu để demo"), xóa toàn bộ dữ liệu (có xác nhận), giới thiệu.
-- **Lưu trữ**: SQLite trên máy (bảng `subscriptions`, `tags`, `subscription_tags`), truy cập qua Repository; đóng mở app dữ liệu vẫn còn.
+- **Lưu trữ**: SQLite trên máy (bảng `subscriptions`, `tags`, `subscription_tags`, `payments`), truy cập qua Repository; đóng mở app dữ liệu vẫn còn.
 - **Việt hóa**: mọi chuỗi nằm trong `res/values/strings.xml` (tiếng Việt là mặc định); ứng dụng ép locale `vi-VN` nên DatePicker, định dạng tiền (260.000 ₫) và ngày (dd/MM/yyyy) đều theo tiếng Việt dù máy đặt ngôn ngữ khác. Chỉ giữ nguyên tên riêng (Android, iPhone, PlayStation…) và mã tiền tệ.
 - **Giao diện sáng / tối** theo cài đặt hệ thống.
 
