@@ -46,7 +46,8 @@ private const val EDIT_ROUTE = "edit/{id}"
 private fun editRoute(id: Long) = "edit/$id"
 
 @Composable
-fun SubTrackRoot() {
+fun SubTrackRoot(openSubscriptionId: Long? = null, onOpenedSubscription: () -> Unit = {}) {
+    // dùng ở Task 4: điều hướng tới detail/{id}
     val app = LocalContext.current.applicationContext as SubTrackApp
     val settings by app.settings.settings.collectAsStateWithLifecycle()
     if (!settings.onboardingDone) {

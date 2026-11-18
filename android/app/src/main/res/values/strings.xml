@@ -237,6 +237,8 @@
         <item quantity="other">Thanh toán %1$s sau %2$d ngày nữa, ngày %3$s</item>
     </plurals>
     <string name="notif_body_today">Thanh toán %1$s hôm nay</string>
+    <string name="notif_action_paid">Đã trả</string>
+    <string name="notif_action_snooze">Nhắc sau 1 ngày</string>
     <string name="notif_test_title">Thông báo thử</string>
     <string name="notif_test_body">Nhắc hạn thanh toán đang hoạt động trên máy của bạn.</string>
 

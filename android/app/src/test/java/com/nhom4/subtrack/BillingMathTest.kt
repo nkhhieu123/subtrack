@@ -25,9 +25,11 @@ class BillingMathTest {
         amount: Double, cycle: BillingCycle, date: LocalDate = today.plusDays(10),
         status: SubscriptionStatus = SubscriptionStatus.ACTIVE, currency: Currency = Currency.VND,
         remind: Int? = 3, name: String = "Gói",
+        snoozedUntil: LocalDate? = null, lastNotifiedOn: LocalDate? = null,
     ) = Subscription(
         name = name, amount = amount, currency = currency, cycle = cycle, nextPaymentDate = date,
         category = Category.OTHER, status = status, remindDaysBefore = remind,
+        snoozedUntil = snoozedUntil, lastNotifiedOn = lastNotifiedOn,
     )
 
     @Test
@@ -100,13 +102,46 @@ class BillingMathTest {
         assertFalse(BillingMath.isValidUrl("https://"))
     }
 
+    private fun remind(next: Int, notified: Int? = null, snoozed: Int? = null, remind: Int? = 3, status: SubscriptionStatus = SubscriptionStatus.ACTIVE) =
+        ReminderWorker.shouldRemind(
+            sub(1.0, BillingCycle.MONTHLY, today.plusDays(next.toLong()), status = status, remind = remind,
+                snoozedUntil = snoozed?.let { today.plusDays(it.toLong()) },
+                lastNotifiedOn = notified?.let { today.plusDays(it.toLong()) }),
+            today,
+        )
+
     @Test
-    fun reminder_firesInsideWindowOnlyForActive() {
-        assertTrue(ReminderWorker.shouldRemind(sub(1.0, BillingCycle.MONTHLY, today.plusDays(3), remind = 3), today))
-        assertTrue(ReminderWorker.shouldRemind(sub(1.0, BillingCycle.MONTHLY, today, remind = 0), today))
-        assertFalse(ReminderWorker.shouldRemind(sub(1.0, BillingCycle.MONTHLY, today.plusDays(4), remind = 3), today))
-        assertFalse(ReminderWorker.shouldRemind(sub(1.0, BillingCycle.MONTHLY, today.plusDays(1), remind = null), today))
-        assertFalse(ReminderWorker.shouldRemind(sub(1.0, BillingCycle.MONTHLY, today.plusDays(1), status = SubscriptionStatus.CANCELLED), today))
+    fun remind_firstTimeInWindow() {
+        assertTrue(remind(3))
+        assertFalse(remind(4))
+    }
+
+    @Test
+    fun remind_onceThenQuietUntilDueDay() {
+        assertFalse(remind(2, notified = -1))
+        assertTrue(remind(0, notified = -3))
+    }
+
+    @Test
+    fun remind_notTwiceSameDay() = assertFalse(remind(0, notified = 0))
+
+    @Test
+    fun remind_overdueEveryThreeDays() {
+        assertTrue(remind(-4, notified = -3))
+        assertFalse(remind(-4, notified = -2))
+    }
+
+    @Test
+    fun remind_snoozedIsQuiet() = assertFalse(remind(-1, snoozed = 1))
+
+    @Test
+    fun snoozeEnds_remindsOnSnoozeDay() = assertTrue(remind(-1, snoozed = 0, notified = -1))
+
+    @Test
+    fun remind_offOrInactiveIsQuiet() {
+        assertFalse(remind(1, remind = null))
+        assertFalse(remind(1, status = SubscriptionStatus.CANCELLED))
+        assertFalse(remind(1, status = SubscriptionStatus.PAUSED))
     }
 
     @Test

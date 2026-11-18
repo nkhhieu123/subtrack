@@ -28,6 +28,7 @@ import com.nhom4.subtrack.domain.BillingMath
 import com.nhom4.subtrack.ui.formatDate
 import com.nhom4.subtrack.ui.formatMoney
 import java.time.LocalDate
+import java.time.temporal.ChronoUnit
 import java.util.concurrent.TimeUnit
 
 /** Chạy mỗi ngày: gửi thông báo cho gói đang trong khoảng nhắc trước hạn. */
@@ -41,11 +42,10 @@ class ReminderWorker(context: Context, params: WorkerParameters) : CoroutineWork
             val today = LocalDate.now()
             app.repository.subscriptions.value.orEmpty()
                 .filter { shouldRemind(it, today) }
-                .filter { !app.settings.wasReminded(it.id, it.nextPaymentDate.toEpochDay()) }
                 .forEach {
-                    // Chỉ đánh dấu đã nhắc khi gửi được; thiếu quyền thì lần kiểm tra sau sẽ thử lại
+                    // Chỉ ghi nhận khi gửi được; thiếu quyền thì lần kiểm tra sau sẽ thử lại
                     if (Reminders.notifyDue(applicationContext, it, BillingMath.daysUntil(it.nextPaymentDate, today))) {
-                        app.settings.markReminded(it.id, it.nextPaymentDate.toEpochDay())
+                        app.repository.markNotified(it.id, today)
                     }
                 }
             Result.success()
@@ -57,7 +57,12 @@ class ReminderWorker(context: Context, params: WorkerParameters) : CoroutineWork
             val before = sub.remindDaysBefore ?: return false
             if (sub.status != SubscriptionStatus.ACTIVE) return false
             val days = BillingMath.daysUntil(sub.nextPaymentDate, today)
-            return days in 0..before.toLong()
+            val last = sub.lastNotifiedOn
+            val snooze = sub.snoozedUntil
+            if (days > before || last == today) return false
+            if (snooze != null && snooze > today) return false
+            return last == null || days == 0L || snooze == today ||
+                (days < 0 && ChronoUnit.DAYS.between(last, today) >= 3)
         }
     }
 }
@@ -109,28 +114,41 @@ object Reminders {
         else context.getString(R.string.notif_title, sub.name)
         val body = if (days == 0L) context.getString(R.string.notif_body_today, money)
         else context.resources.getQuantityString(R.plurals.notif_body, days.toInt(), money, days.toInt(), formatDate(sub.nextPaymentDate))
-        return post(context, sub.id.toInt(), title, body)
+        return post(context, sub.id.toInt(), title, body, sub)
     }
 
     fun notifyTest(context: Context): Boolean =
         post(context, 0, context.getString(R.string.notif_test_title), context.getString(R.string.notif_test_body))
 
-    @SuppressLint("MissingPermission") // đã kiểm tra bằng hasPermission ngay bên dưới
-    private fun post(context: Context, id: Int, title: String, body: String): Boolean {
-        if (!hasPermission(context)) return false
-        val intent = PendingIntent.getActivity(
-            context, 0,
-            Intent(context, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP),
-            PendingIntent.FLAG_IMMUTABLE,
+    private const val PI_FLAGS = PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
+
+    private fun action(context: Context, sub: Subscription, action: String, slot: Int): PendingIntent =
+        PendingIntent.getBroadcast(
+            context, sub.id.toInt() * 3 + slot,
+            Intent(context, PaymentActionReceiver::class.java).setAction(action)
+                .putExtra(PaymentActionReceiver.EXTRA_SUB_ID, sub.id)
+                .putExtra(PaymentActionReceiver.EXTRA_PERIOD, sub.nextPaymentDate.toEpochDay()),
+            PI_FLAGS,
         )
-        val notification = NotificationCompat.Builder(context, CHANNEL_ID)
+
+    @SuppressLint("MissingPermission") // đã kiểm tra bằng hasPermission ngay bên dưới
+    private fun post(context: Context, id: Int, title: String, body: String, sub: Subscription? = null): Boolean {
+        if (!hasPermission(context)) return false
+        val open = Intent(context, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)
+        sub?.let { open.putExtra(MainActivity.EXTRA_OPEN_SUBSCRIPTION, it.id) }
+        val intent = PendingIntent.getActivity(context, (sub?.id?.toInt() ?: 0) * 3, open, PI_FLAGS)
+        val builder = NotificationCompat.Builder(context, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_notification)
             .setContentTitle(title)
             .setContentText(body)
             .setStyle(NotificationCompat.BigTextStyle().bigText(body))
             .setContentIntent(intent)
             .setAutoCancel(true)
-            .build()
+        if (sub != null) {
+            builder.addAction(0, context.getString(R.string.notif_action_paid), action(context, sub, PaymentActionReceiver.ACTION_PAID, 1))
+            builder.addAction(0, context.getString(R.string.notif_action_snooze), action(context, sub, PaymentActionReceiver.ACTION_SNOOZE, 2))
+        }
+        val notification = builder.build()
         return runCatching { NotificationManagerCompat.from(context).notify(id, notification) }.isSuccess
     }
 }
