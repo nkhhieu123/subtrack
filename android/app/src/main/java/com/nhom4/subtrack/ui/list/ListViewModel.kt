@@ -40,6 +40,7 @@ data class ListUiState(
     val otherCurrencyCount: Int = 0,
     val activeCount: Int = 0,
     val dueSoonCount: Int = 0,
+    val pendingCount: Int = 0,
 )
 
 class ListViewModel(private val app: SubTrackApp) : ViewModel() {
@@ -65,6 +66,7 @@ class ListViewModel(private val app: SubTrackApp) : ViewModel() {
             otherCurrencyCount = active.count { it.currency != settings.defaultCurrency },
             activeCount = active.size,
             dueSoonCount = active.count { BillingMath.daysUntil(it.nextPaymentDate, today) in 0..7 },
+            pendingCount = active.count { BillingMath.daysUntil(it.nextPaymentDate, today) < 0 },
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), ListUiState())
 

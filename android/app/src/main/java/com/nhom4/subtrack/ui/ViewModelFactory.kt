@@ -6,6 +6,7 @@ import androidx.lifecycle.viewmodel.CreationExtras
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import com.nhom4.subtrack.SubTrackApp
+import com.nhom4.subtrack.ui.detail.DetailViewModel
 import com.nhom4.subtrack.ui.edit.EditViewModel
 import com.nhom4.subtrack.ui.list.ListViewModel
 import com.nhom4.subtrack.ui.organize.OrganizeViewModel
@@ -24,5 +25,9 @@ object AppViewModels {
 
     fun edit(id: Long): ViewModelProvider.Factory = viewModelFactory {
         initializer { EditViewModel(app(), id) }
+    }
+
+    fun detail(id: Long): ViewModelProvider.Factory = viewModelFactory {
+        initializer { DetailViewModel(app(), id) }
     }
 }

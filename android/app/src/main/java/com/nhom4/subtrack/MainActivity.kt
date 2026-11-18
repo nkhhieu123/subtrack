@@ -34,11 +34,13 @@ class MainActivity : ComponentActivity() {
     private fun readOpenExtra(intent: Intent?) {
         val id = intent?.getLongExtra(EXTRA_OPEN_SUBSCRIPTION, -1L) ?: -1L
         if (id > 0) openSubscriptionId = id
+        // Chỉ dùng một lần: xoay màn hình / tạo lại activity không điều hướng lại.
+        intent?.removeExtra(EXTRA_OPEN_SUBSCRIPTION)
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        readOpenExtra(intent)
+        if (savedInstanceState == null) readOpenExtra(intent)
         enableEdgeToEdge()
         setContent {
             SubTrackTheme {

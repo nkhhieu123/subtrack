@@ -142,7 +142,7 @@
     <string name="deleted">Đã xóa gói đăng ký</string>
     <string name="save_failed">Không lưu được. Vui lòng thử lại.</string>
     <string name="delete_confirm_title">Xóa gói đăng ký?</string>
-    <string name="delete_confirm_body">Gói “%1$s” sẽ bị xóa vĩnh viễn.</string>
+    <string name="delete_confirm_body">Gói “%1$s” sẽ bị xóa. Lịch sử chi trả vẫn được giữ trong Báo cáo.</string>
     <string name="not_found">Không tìm thấy gói đăng ký này</string>
     <string name="no_calendar_app">Không tìm thấy ứng dụng Lịch trên máy</string>
     <string name="no_browser">Không mở được liên kết</string>
@@ -244,4 +244,29 @@
 
     <!-- File CSV -->
     <string name="csv_header">Tên dịch vụ,Số tiền,Tiền tệ,Chu kỳ,Ngày thanh toán tiếp theo,Danh mục,Trạng thái,Nhắc trước (ngày),Tag,Nền tảng,Liên kết quản lý,Ghi chú</string>
+
+    <!-- Màn hình xem gói -->
+    <string name="due_pending">Chờ xác nhận</string>
+    <string name="pending_count">Gói chờ xác nhận</string>
+    <string name="action_paid">Đã trả</string>
+    <string name="action_skip">Bỏ qua kỳ này</string>
+    <string name="action_snooze">Nhắc lại sau</string>
+    <string name="snooze_1d">1 ngày</string>
+    <string name="snooze_3d">3 ngày</string>
+    <string name="action_cancel_sub">Đã hủy</string>
+    <string name="action_reactivate">Kích hoạt lại</string>
+    <string name="action_undo">Hoàn tác</string>
+    <string name="section_this_period">Kỳ này</string>
+    <string name="history_title">Lịch sử chi trả</string>
+    <string name="history_empty">Chưa có kỳ nào được xử lý</string>
+    <string name="history_skipped">Bỏ qua</string>
+    <string name="paid_total">Đã chi: %1$s (%2$d lần)</string>
+    <string name="paid_dialog_title">Ghi nhận đã trả</string>
+    <string name="paid_dialog_date">Ngày trả: %1$s</string>
+    <string name="reactivate_dialog_title">Chọn ngày thanh toán tới</string>
+    <string name="msg_paid">Đã ghi nhận thanh toán</string>
+    <string name="msg_skipped">Đã bỏ qua kỳ này</string>
+    <string name="msg_snoozed">Sẽ nhắc lại sau</string>
+    <string name="msg_cancelled">Đã hủy gói</string>
+    <string name="msg_reactivated">Đã kích hoạt lại gói</string>
 </resources>

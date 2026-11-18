@@ -134,7 +134,7 @@ object Reminders {
     @SuppressLint("MissingPermission") // đã kiểm tra bằng hasPermission ngay bên dưới
     private fun post(context: Context, id: Int, title: String, body: String, sub: Subscription? = null): Boolean {
         if (!hasPermission(context)) return false
-        val open = Intent(context, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)
+        val open = Intent(context, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
         sub?.let { open.putExtra(MainActivity.EXTRA_OPEN_SUBSCRIPTION, it.id) }
         val intent = PendingIntent.getActivity(context, (sub?.id?.toInt() ?: 0) * 3, open, PI_FLAGS)
         val builder = NotificationCompat.Builder(context, CHANNEL_ID)

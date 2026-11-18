@@ -50,6 +50,7 @@ data class FormErrors(
 sealed interface EditEvent {
     data class Message(@StringRes val text: Int) : EditEvent
     data object Done : EditEvent
+    data object Deleted : EditEvent
 }
 
 class EditViewModel(private val app: SubTrackApp, private val id: Long) : ViewModel() {
@@ -153,7 +154,7 @@ class EditViewModel(private val app: SubTrackApp, private val id: Long) : ViewMo
             runCatching { repo.delete(id) }
                 .onSuccess {
                     _events.send(EditEvent.Message(R.string.deleted))
-                    _events.send(EditEvent.Done)
+                    _events.send(EditEvent.Deleted)
                 }
                 .onFailure { _events.send(EditEvent.Message(R.string.save_failed)) }
         }

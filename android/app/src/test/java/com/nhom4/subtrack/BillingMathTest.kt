@@ -9,6 +9,9 @@ import com.nhom4.subtrack.domain.BillingMath
 import com.nhom4.subtrack.domain.CsvWriter
 import com.nhom4.subtrack.domain.RenewalLevel
 import com.nhom4.subtrack.reminder.ReminderWorker
+import com.nhom4.subtrack.data.Payment
+import com.nhom4.subtrack.data.PaymentKind
+import com.nhom4.subtrack.ui.detail.DetailViewModel
 import com.nhom4.subtrack.ui.formatMoney
 import com.nhom4.subtrack.ui.reports.ReportsViewModel
 import org.junit.Assert.assertEquals
@@ -174,5 +177,32 @@ class BillingMathTest {
         assertTrue(vnd, vnd.contains("260.000") && vnd.contains("₫"))
         val usd = formatMoney(9.99, Currency.USD)
         assertTrue(usd, usd.contains("9,99"))
+    }
+
+    private fun pay(kind: PaymentKind, amount: Double?, cur: Currency?) = Payment(
+        subscriptionId = 1, subscriptionName = "Gói", category = Category.OTHER, periodDate = today,
+        kind = kind, paidDate = if (kind == PaymentKind.PAID) today else null, amount = amount, currency = cur,
+    )
+
+    @Test
+    fun detail_paidTotalsPerCurrencyIgnoresSkipped() {
+        val totals = DetailViewModel.paidTotals(
+            listOf(
+                pay(PaymentKind.PAID, 260000.0, Currency.VND),
+                pay(PaymentKind.PAID, 5.0, Currency.USD),
+                pay(PaymentKind.SKIPPED, null, null),
+            )
+        )
+        assertEquals(mapOf(Currency.VND to 260000.0, Currency.USD to 5.0), totals)
+    }
+
+    @Test
+    fun detail_snoozeOnlyInWindowOrOverdue() {
+        fun s(days: Long, status: SubscriptionStatus = SubscriptionStatus.ACTIVE) =
+            sub(1.0, BillingCycle.MONTHLY, today.plusDays(days), status, remind = 3)
+        assertFalse(DetailViewModel.inReminderWindow(s(5), today))
+        assertTrue(DetailViewModel.inReminderWindow(s(3), today))
+        assertTrue(DetailViewModel.inReminderWindow(s(-2), today))
+        assertFalse(DetailViewModel.inReminderWindow(s(3, SubscriptionStatus.PAUSED), today))
     }
 }

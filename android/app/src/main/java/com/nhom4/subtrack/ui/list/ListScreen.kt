@@ -208,6 +208,9 @@ private fun SummaryCard(state: ListUiState) {
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 SummaryStat(state.activeCount.toString(), stringResource(R.string.summary_active), Modifier.weight(1f))
                 SummaryStat(state.dueSoonCount.toString(), stringResource(R.string.summary_due), Modifier.weight(1f))
+                if (state.pendingCount > 0) {
+                    SummaryStat(state.pendingCount.toString(), stringResource(R.string.pending_count), Modifier.weight(1f))
+                }
             }
         }
     }
@@ -325,10 +328,15 @@ private fun SubscriptionRow(sub: Subscription, tags: Map<Long, Tag>, onClick: ()
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                     Text(
-                        if (active) stringResource(R.string.next_payment, formatDate(sub.nextPaymentDate)) + " · " + dueText(days)
+                        if (active && days < 0) stringResource(R.string.due_pending)
+                        else if (active) stringResource(R.string.next_payment, formatDate(sub.nextPaymentDate)) + " · " + dueText(days)
                         else stringResource(sub.status.label),
                         style = MaterialTheme.typography.bodySmall,
-                        color = if (active && days <= 7) SoonRed else MaterialTheme.colorScheme.onSurfaceVariant,
+                        color = when {
+                            active && days < 0 -> MaterialTheme.colorScheme.error
+                            active && days <= 7 -> SoonRed
+                            else -> MaterialTheme.colorScheme.onSurfaceVariant
+                        },
                     )
                     val chipTags = sub.tagIds.mapNotNull { tags[it] }
                     if (chipTags.isNotEmpty() || sub.platforms.isNotEmpty()) {
