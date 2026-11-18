@@ -1,16 +1,16 @@
 package com.nhom4.subtrack.data
 
-import com.nhom4.subtrack.domain.BillingMath
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.withContext
-import java.time.LocalDate
 
 /**
- * Nguồn dữ liệu duy nhất cho UI. Mọi thao tác đọc/ghi chạy trên Dispatchers.IO,
- * sau mỗi lần ghi thì làm mới [subscriptions] và [tags].
+ * Nguồn dữ liệu duy nhất cho các ViewModel.
+ * - Mọi thao tác đọc/ghi chạy trên Dispatchers.IO để không làm đứng giao diện.
+ * - Sau mỗi lần ghi (thêm/sửa/xóa) thì đọc lại và phát dữ liệu mới qua [subscriptions], [tags];
+ *   màn hình nào đang theo dõi StateFlow sẽ tự vẽ lại.
  */
 class SubscriptionRepository(private val db: SubTrackDatabase) {
 
@@ -21,45 +21,36 @@ class SubscriptionRepository(private val db: SubTrackDatabase) {
     private val _tags = MutableStateFlow<List<Tag>>(emptyList())
     val tags: StateFlow<List<Tag>> = _tags.asStateFlow()
 
+    /** READ: đọc lại toàn bộ gói và tag từ SQLite. */
     suspend fun refresh() = withContext(Dispatchers.IO) {
-        rollOverPastDates()
         _subscriptions.value = db.getSubscriptions()
         _tags.value = db.getTags()
     }
 
+    /** READ một gói theo id (null nếu không còn). */
     suspend fun getSubscription(id: Long): Subscription? = withContext(Dispatchers.IO) {
         db.getSubscriptions().firstOrNull { it.id == id }
     }
 
+    /** CREATE (id = 0) hoặc UPDATE (id > 0) gói đăng ký. Trả về id. */
     suspend fun save(sub: Subscription): Long = withContext(Dispatchers.IO) {
         db.upsertSubscription(sub).also { refresh() }
     }
 
+    /** DELETE gói; liên kết tag, nền tảng tự xóa theo khóa ngoại. */
     suspend fun delete(id: Long) = withContext(Dispatchers.IO) {
         db.deleteSubscription(id)
         refresh()
     }
 
-    suspend fun setStatus(sub: Subscription, status: SubscriptionStatus) = save(sub.copy(status = status))
-
+    /** CREATE / UPDATE tag. Trả về false nếu trùng tên. */
     suspend fun saveTag(tag: Tag): Boolean = withContext(Dispatchers.IO) {
         db.upsertTag(tag).also { refresh() }
     }
 
+    /** DELETE tag; chỉ gỡ khỏi các gói, không xóa gói. */
     suspend fun deleteTag(id: Long) = withContext(Dispatchers.IO) {
         db.deleteTag(id)
         refresh()
-    }
-
-    suspend fun clearAll() = withContext(Dispatchers.IO) {
-        db.clearAll()
-        refresh()
-    }
-
-    /** Gói đang hoạt động có ngày thanh toán đã qua thì tự chuyển sang kỳ kế tiếp. */
-    private fun rollOverPastDates(today: LocalDate = LocalDate.now()) {
-        db.getSubscriptions()
-            .filter { it.status == SubscriptionStatus.ACTIVE && it.nextPaymentDate.isBefore(today) }
-            .forEach { db.updateNextPaymentDate(it.id, BillingMath.nextOnOrAfter(it.nextPaymentDate, it.cycle, today)) }
     }
 }
