@@ -69,16 +69,16 @@ if /i "%MODE%"=="xoa" (
   "%ADB%" shell pm clear %PKG% >nul
 )
 
-rem ---------- Mở app một lần để tạo / nâng cấp CSDL lên version 3 ----------
+rem ---------- Mở app một lần để tạo / nâng cấp CSDL lên version 4 ----------
 echo Đang mở app để tạo / nâng cấp CSDL...
 "%ADB%" shell am start -n %PKG%/.MainActivity >nul
 timeout /t 5 /nobreak >nul
 "%ADB%" shell am force-stop %PKG%
 
-"%ADB%" shell "run-as %PKG% sqlite3 %DB% 'PRAGMA user_version;'" | findstr /b "3" >nul
+"%ADB%" shell "run-as %PKG% sqlite3 %DB% 'PRAGMA user_version;'" | findstr /b "3 4" >nul
 if errorlevel 1 (
-  echo [LỖI] CSDL trên máy không phải version 3. App đang cài là bản cũ:
-  echo        trong Android Studio chuyển sang nhánh tuan3, bấm Run, rồi chạy lại script.
+  echo [LỖI] CSDL trên máy chưa phải version 3 hoặc 4. App đang cài là bản cũ:
+  echo        trong Android Studio cập nhật nhánh main, bấm Run, rồi chạy lại script.
   goto :fail
 )
 

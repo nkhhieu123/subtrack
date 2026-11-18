@@ -80,8 +80,9 @@ import com.nhom4.subtrack.ui.LoadingState
 import com.nhom4.subtrack.ui.SectionHeader
 import com.nhom4.subtrack.ui.SelectField
 import com.nhom4.subtrack.ui.formatDate
+import com.nhom4.subtrack.ui.formatMoney
 import com.nhom4.subtrack.ui.label
-import com.nhom4.subtrack.ui.tags.TagDialog
+import com.nhom4.subtrack.ui.organize.TagDialog
 import kotlinx.coroutines.launch
 import java.time.Instant
 import java.time.ZoneOffset
@@ -92,6 +93,7 @@ private val REMIND_OPTIONS: List<Int?> = listOf(null, 0, 1, 3, 7, 30)
 fun EditScreen(
     subscriptionId: Long,
     onDone: () -> Unit,
+    onDeleted: () -> Unit = onDone,
     vm: EditViewModel = viewModel(key = "edit-$subscriptionId", factory = AppViewModels.edit(subscriptionId)),
 ) {
     val resources = LocalResources.current
@@ -104,6 +106,7 @@ fun EditScreen(
             when (event) {
                 is EditEvent.Message -> scope.launch { snackbar.showSnackbar(resources.getString(event.text)) }
                 EditEvent.Done -> onDone()
+                EditEvent.Deleted -> onDeleted()
             }
         }
     }
@@ -216,6 +219,13 @@ private fun EditForm(vm: EditViewModel, modifier: Modifier) {
                 onSelect = { c -> vm.update { it.copy(cycle = c) } },
                 modifier = Modifier.fillMaxWidth(),
             )
+            vm.monthlyPreview()?.let {
+                Text(
+                    stringResource(R.string.monthly_equivalent, formatMoney(it, f.currency)),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
             OutlinedButton(onClick = { pickDate = true }, modifier = Modifier.fillMaxWidth()) {
                 Icon(Icons.Filled.CalendarMonth, null, Modifier.size(18.dp))
                 Spacer(Modifier.size(8.dp))
@@ -252,6 +262,9 @@ private fun EditForm(vm: EditViewModel, modifier: Modifier) {
                 onSelect = { d -> vm.update { it.copy(remindDaysBefore = d) } },
                 modifier = Modifier.fillMaxWidth(),
             )
+            if (!vm.remindersEnabled) {
+                Text(stringResource(R.string.reminders_off_hint), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
+            }
         }
 
         SectionHeader(stringResource(R.string.section_organization))

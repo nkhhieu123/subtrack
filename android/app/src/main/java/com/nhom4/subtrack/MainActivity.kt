@@ -1,11 +1,15 @@
 package com.nhom4.subtrack
 
 import android.content.Context
+import android.content.Intent
 import android.content.res.Configuration
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import com.nhom4.subtrack.ui.SubTrackRoot
 import com.nhom4.subtrack.ui.VietnameseLocale
 import com.nhom4.subtrack.ui.theme.SubTrackTheme
@@ -20,13 +24,33 @@ class MainActivity : ComponentActivity() {
         super.attachBaseContext(newBase.createConfigurationContext(config))
     }
 
+    private var openSubscriptionId by mutableStateOf<Long?>(null)
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        readOpenExtra(intent)
+    }
+
+    private fun readOpenExtra(intent: Intent?) {
+        val id = intent?.getLongExtra(EXTRA_OPEN_SUBSCRIPTION, -1L) ?: -1L
+        val fromHistory = intent?.flags?.and(Intent.FLAG_ACTIVITY_LAUNCHED_FROM_HISTORY) != 0
+        if (id > 0 && !fromHistory) openSubscriptionId = id
+        // Chỉ dùng một lần: xoay màn hình / tạo lại activity không điều hướng lại.
+        intent?.removeExtra(EXTRA_OPEN_SUBSCRIPTION)
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        if (savedInstanceState == null) readOpenExtra(intent)
         enableEdgeToEdge()
         setContent {
             SubTrackTheme {
-                SubTrackRoot()
+                SubTrackRoot(openSubscriptionId, onOpenedSubscription = { openSubscriptionId = null })
             }
         }
+    }
+
+    companion object {
+        const val EXTRA_OPEN_SUBSCRIPTION = "open_subscription_id"
     }
 }

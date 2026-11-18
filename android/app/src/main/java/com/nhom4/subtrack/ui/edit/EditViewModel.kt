@@ -16,6 +16,7 @@ import com.nhom4.subtrack.data.Subscription
 import com.nhom4.subtrack.data.SubscriptionStatus
 import com.nhom4.subtrack.data.Tag
 import com.nhom4.subtrack.domain.BillingMath
+import com.nhom4.subtrack.reminder.Reminders
 import com.nhom4.subtrack.ui.formatAmountInput
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.StateFlow
@@ -49,13 +50,10 @@ data class FormErrors(
 sealed interface EditEvent {
     data class Message(@StringRes val text: Int) : EditEvent
     data object Done : EditEvent
+    data object Deleted : EditEvent
 }
 
-/**
- * Form thêm (id = 0) / sửa (id > 0) / xóa một gói.
- * Kiểm tra dữ liệu nhập ở đây trước khi gọi Repository ghi xuống SQLite.
- */
-class EditViewModel(app: SubTrackApp, private val id: Long) : ViewModel() {
+class EditViewModel(private val app: SubTrackApp, private val id: Long) : ViewModel() {
     private val repo = app.repository
     val isNew = id == 0L
 
@@ -65,7 +63,7 @@ class EditViewModel(app: SubTrackApp, private val id: Long) : ViewModel() {
         private set
     var saving by mutableStateOf(false)
         private set
-    var form by mutableStateOf(EditForm())
+    var form by mutableStateOf(EditForm(currency = app.settings.settings.value.defaultCurrency))
         private set
     var errors by mutableStateOf(FormErrors())
         private set
@@ -73,6 +71,7 @@ class EditViewModel(app: SubTrackApp, private val id: Long) : ViewModel() {
     private var attempted = false
 
     val tags: StateFlow<List<Tag>> = repo.tags
+    val remindersEnabled get() = app.settings.settings.value.remindersEnabled
 
     private val _events = Channel<EditEvent>(Channel.BUFFERED)
     val events = _events.receiveAsFlow()
@@ -105,7 +104,10 @@ class EditViewModel(app: SubTrackApp, private val id: Long) : ViewModel() {
         }
     }
 
-    /** CREATE / UPDATE: kiểm tra dữ liệu, hợp lệ thì lưu và quay về danh sách. */
+    /** Chi phí tương đương mỗi tháng của số tiền đang nhập (null nếu chưa hợp lệ). */
+    fun monthlyPreview(): Double? =
+        BillingMath.parseAmount(form.amount, form.currency)?.let { BillingMath.monthlyCost(it, form.cycle) }
+
     fun save() {
         attempted = true
         val (errs, amount) = validate(form)
@@ -138,6 +140,7 @@ class EditViewModel(app: SubTrackApp, private val id: Long) : ViewModel() {
             }
             saving = false
             if (result.isSuccess) {
+                if (remindersEnabled) Reminders.checkNow(app)
                 _events.send(EditEvent.Message(R.string.saved))
                 _events.send(EditEvent.Done)
             } else {
@@ -146,13 +149,12 @@ class EditViewModel(app: SubTrackApp, private val id: Long) : ViewModel() {
         }
     }
 
-    /** DELETE gói đang mở. */
     fun delete() {
         viewModelScope.launch {
             runCatching { repo.delete(id) }
                 .onSuccess {
                     _events.send(EditEvent.Message(R.string.deleted))
-                    _events.send(EditEvent.Done)
+                    _events.send(EditEvent.Deleted)
                 }
                 .onFailure { _events.send(EditEvent.Message(R.string.save_failed)) }
         }

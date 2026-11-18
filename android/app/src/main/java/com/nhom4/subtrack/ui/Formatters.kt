@@ -32,6 +32,8 @@ fun formatAmountInput(amount: Double, currency: Currency): String =
     if (currency == Currency.VND) amount.toLong().toString()
     else String.format(Locale.US, "%.2f", amount)
 
+fun formatPercent(value: Double): String = String.format(VietnameseLocale, "%.1f", value)
+
 @get:StringRes
 val BillingCycle.label: Int
     get() = when (this) {

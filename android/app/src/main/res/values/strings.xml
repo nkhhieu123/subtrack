@@ -5,8 +5,9 @@
 
     <!-- Điều hướng -->
     <string name="tab_subscriptions">Gói đăng ký</string>
-    <string name="tab_tags">Tag</string>
-    <string name="tags_title">Tag</string>
+    <string name="tab_organize">Tổ chức</string>
+    <string name="tab_reports">Báo cáo</string>
+    <string name="tab_settings">Cài đặt</string>
 
     <!-- Dùng chung -->
     <string name="action_save">Lưu</string>
@@ -19,12 +20,43 @@
     <string name="error_generic">Đã xảy ra lỗi. Vui lòng thử lại.</string>
     <string name="action_retry">Thử lại</string>
 
+    <!-- Giới thiệu lần đầu -->
+    <string name="onboarding_title">Chào mừng đến với SubTrack</string>
+    <string name="onboarding_point_1_title">Quản lý tập trung</string>
+    <string name="onboarding_point_1_body">Ghi lại mọi gói đăng ký: giá, chu kỳ, ngày thanh toán, tag và nền tảng.</string>
+    <string name="onboarding_point_2_title">Không lỡ ngày gia hạn</string>
+    <string name="onboarding_point_2_body">Gói sắp đến hạn được tô màu và ứng dụng gửi thông báo nhắc trước.</string>
+    <string name="onboarding_point_3_title">Biết mình chi bao nhiêu</string>
+    <string name="onboarding_point_3_body">Báo cáo chi phí theo tuần, tháng, quý, năm và theo từng danh mục.</string>
+    <string name="onboarding_privacy">Dữ liệu lưu trên điện thoại của bạn, không cần tài khoản.</string>
+    <string name="onboarding_start">Bắt đầu</string>
+
     <!-- Danh sách -->
     <string name="list_title">Gói đăng ký</string>
+    <string name="search_hint">Tìm theo tên, tag, nền tảng</string>
+    <string name="action_clear_search">Xóa nội dung tìm kiếm</string>
+    <string name="action_sort">Sắp xếp</string>
+    <string name="sort_by_date">Ngày thanh toán gần nhất</string>
+    <string name="sort_by_price">Chi phí tháng cao nhất</string>
+    <string name="sort_by_name">Tên (A–Z)</string>
+    <string name="filter_all">Tất cả</string>
+    <string name="filter_category">Danh mục</string>
+    <string name="filter_all_categories">Mọi danh mục</string>
+    <string name="summary_monthly">Chi phí tháng ước tính</string>
+    <string name="summary_active">Đang hoạt động</string>
+    <string name="summary_due">Đến hạn ≤ 7 ngày</string>
     <string name="next_payment">Kế tiếp: %1$s</string>
+    <string name="due_today">Hôm nay</string>
+    <string name="due_tomorrow">Ngày mai</string>
+    <plurals name="due_in_days">
+        <item quantity="other">Còn %d ngày</item>
+    </plurals>
     <string name="empty_title">Chưa có gói đăng ký nào</string>
     <string name="empty_body">Nhấn nút + để thêm gói đầu tiên.</string>
+    <string name="empty_search">Không tìm thấy gói phù hợp</string>
+    <string name="clear_filters">Xóa bộ lọc</string>
     <string name="add_subscription">Thêm gói đăng ký</string>
+    <string name="other_currency_note">Chưa tính %1$d gói dùng tiền tệ khác</string>
 
     <!-- Chu kỳ -->
     <string name="cycle_weekly">Hằng tuần</string>
@@ -79,6 +111,7 @@
     <string name="field_next_date">Ngày thanh toán tiếp theo</string>
     <string name="field_category">Danh mục</string>
     <string name="field_status">Trạng thái</string>
+    <string name="monthly_equivalent">Tương đương %1$s mỗi tháng</string>
     <string name="section_reminder">Nhắc hạn</string>
     <string name="field_remind">Nhắc trước</string>
     <string name="remind_none">Không nhắc</string>
@@ -86,6 +119,8 @@
     <plurals name="remind_days_before">
         <item quantity="other">Trước %d ngày</item>
     </plurals>
+    <string name="reminders_off_hint">Thông báo nhắc hạn đang tắt trong Cài đặt.</string>
+    <string name="add_to_calendar">Thêm vào Lịch</string>
     <string name="section_organization">Tổ chức</string>
     <string name="field_tags">Tag</string>
     <string name="field_platforms">Nền tảng</string>
@@ -94,6 +129,7 @@
     <string name="section_more">Thông tin thêm</string>
     <string name="field_url">Liên kết quản lý gói</string>
     <string name="field_url_placeholder">https://…</string>
+    <string name="open_url">Mở trang quản lý</string>
     <string name="field_notes">Ghi chú</string>
     <string name="field_notes_placeholder">Ví dụ: gói gia đình, chia tiền với bạn</string>
     <string name="err_name_required">Vui lòng nhập tên dịch vụ</string>
@@ -106,11 +142,19 @@
     <string name="deleted">Đã xóa gói đăng ký</string>
     <string name="save_failed">Không lưu được. Vui lòng thử lại.</string>
     <string name="delete_confirm_title">Xóa gói đăng ký?</string>
-    <string name="delete_confirm_body">Gói “%1$s” sẽ bị xóa vĩnh viễn.</string>
+    <string name="delete_confirm_body">Gói “%1$s” sẽ bị xóa. Lịch sử chi trả vẫn được giữ trong Báo cáo.</string>
     <string name="not_found">Không tìm thấy gói đăng ký này</string>
+    <string name="no_calendar_app">Không tìm thấy ứng dụng Lịch trên máy</string>
+    <string name="no_browser">Không mở được liên kết</string>
+    <string name="calendar_event_title">Thanh toán %1$s</string>
+    <string name="calendar_event_desc">Số tiền: %1$s (%2$s)</string>
     <string name="pick_date">Chọn ngày</string>
 
     <!-- Tổ chức -->
+    <string name="organize_title">Tổ chức</string>
+    <string name="organize_tab_tags">Tag</string>
+    <string name="organize_tab_platforms">Nền tảng</string>
+    <string name="organize_tab_categories">Danh mục</string>
     <string name="tags_empty">Chưa có tag nào. Nhấn + để tạo tag.</string>
     <string name="tag_dialog_add">Tạo tag</string>
     <string name="tag_dialog_edit">Sửa tag</string>
@@ -123,5 +167,118 @@
     <plurals name="count_subscriptions">
         <item quantity="other">%d gói</item>
     </plurals>
+    <string name="per_month">%1$s/tháng</string>
+    <string name="platforms_hint">Số gói dùng trên từng nền tảng (gồm cả gói tạm dừng và đã hủy).</string>
+    <string name="categories_hint">Chi phí tháng của các gói đang hoạt động theo danh mục.</string>
+    <string name="organize_nothing">Chưa có dữ liệu</string>
 
+    <!-- Báo cáo -->
+    <string name="reports_title">Báo cáo</string>
+    <string name="report_weekly">Mỗi tuần</string>
+    <string name="report_monthly">Mỗi tháng</string>
+    <string name="report_quarterly">Mỗi quý</string>
+    <string name="report_yearly">Mỗi năm</string>
+    <string name="report_currency">Tiền tệ báo cáo</string>
+    <string name="breakdown_title">Cơ cấu chi phí theo gói</string>
+    <string name="by_category_title">Theo danh mục</string>
+    <string name="top_title">Gói tốn kém nhất</string>
+    <string name="reports_empty">Chưa có gói đang hoạt động để thống kê</string>
+    <string name="reports_currency_note">Chỉ tính các gói dùng %1$s. %2$d gói dùng tiền tệ khác không được cộng vào.</string>
+    <string name="report_rule">Quy đổi về tháng: tuần × 52 ÷ 12, quý ÷ 3, năm ÷ 12.</string>
+    <string name="percent_value">%1$s%%</string>
+    <string name="others">Các gói khác</string>
+    <string name="chart_description">Biểu đồ tròn cơ cấu chi phí theo gói</string>
+
+    <string name="reports_actual_title">Chi thực tế</string>
+    <string name="reports_estimated_title">Ước tính</string>
+    <string name="actual_this_month">Tháng này</string>
+    <string name="actual_this_year">Năm nay</string>
+    <string name="actual_last_months">6 tháng gần nhất</string>
+    <string name="actual_by_category">Theo danh mục (12 tháng)</string>
+    <string name="actual_empty">Chưa có khoản chi nào được ghi nhận.</string>
+    <string name="actual_month_label">Th%1$d/%2$d</string>
+
+    <!-- Cài đặt -->
+    <string name="settings_title">Cài đặt</string>
+    <string name="settings_general">Chung</string>
+    <string name="setting_currency">Tiền tệ mặc định</string>
+    <string name="setting_currency_desc">Dùng cho gói mới và báo cáo</string>
+    <string name="setting_reminders">Thông báo nhắc hạn</string>
+    <string name="setting_reminders_desc">Kiểm tra mỗi ngày và nhắc trước ngày thanh toán theo từng gói</string>
+    <string name="test_notification">Gửi thông báo thử</string>
+    <string name="test_notification_sent">Đã gửi thông báo thử</string>
+    <string name="notif_permission_denied">Bạn chưa cấp quyền thông báo. Hãy bật trong phần Cài đặt của Android.</string>
+    <string name="settings_data">Dữ liệu</string>
+    <string name="export_csv">Xuất danh sách ra CSV</string>
+    <string name="export_csv_desc">Lưu file để sao lưu hoặc mở bằng Excel</string>
+    <plurals name="export_done">
+        <item quantity="other">Đã xuất %d gói ra file CSV</item>
+    </plurals>
+    <string name="export_failed">Xuất file thất bại</string>
+    <string name="export_empty">Chưa có gói nào để xuất</string>
+    <string name="export_file_name">subtrack-goi-dang-ky.csv</string>
+    <string name="share_report">Chia sẻ báo cáo chi phí</string>
+    <string name="share_report_desc">Gửi tóm tắt chi phí qua ứng dụng khác</string>
+    <string name="share_chooser">Chia sẻ qua</string>
+    <string name="share_report_subject">Báo cáo chi phí gói đăng ký</string>
+    <string name="share_report_header">Báo cáo chi phí gói đăng ký (%1$s)</string>
+    <string name="share_report_totals">Mỗi tháng: %1$s\nMỗi năm: %2$s</string>
+    <string name="share_report_count">Số gói đang hoạt động: %1$d</string>
+    <string name="share_report_line">• %1$s: %2$s (%3$s)</string>
+    <string name="add_demo_data">Thêm 5 gói mẫu</string>
+    <string name="add_demo_data_desc">Dữ liệu minh họa có ghi chú “mẫu”, có thể xóa bất cứ lúc nào</string>
+    <string name="demo_added">Đã thêm 5 gói mẫu</string>
+    <string name="demo_note">Gói mẫu để demo</string>
+    <string name="clear_data">Xóa toàn bộ dữ liệu</string>
+    <string name="clear_confirm_title">Xóa toàn bộ dữ liệu?</string>
+    <string name="clear_confirm_body">Mọi gói đăng ký, tag và lịch sử chi trả sẽ bị xóa. Không thể hoàn tác.</string>
+    <string name="cleared">Đã xóa toàn bộ dữ liệu</string>
+    <string name="settings_about">Giới thiệu</string>
+    <string name="about_version">Phiên bản %1$s</string>
+    <string name="about_body">Ứng dụng quản lý gói đăng ký định kỳ. Đồ án môn Lập trình thiết bị di động – Nhóm 4. Ý tưởng tham khảo từ Sub Radar; tên, giao diện và mã nguồn do nhóm tự xây dựng.</string>
+
+    <!-- Thông báo -->
+    <string name="channel_name">Nhắc hạn thanh toán</string>
+    <string name="channel_desc">Nhắc trước khi gói đăng ký đến ngày thanh toán</string>
+    <string name="notif_title">%1$s sắp đến hạn</string>
+    <string name="notif_title_overdue">%1$s đã quá hạn – chờ xác nhận</string>
+    <string name="notif_body_overdue">Kỳ %2$s (%1$s) chưa được xác nhận. Chạm để đánh dấu đã trả hoặc bỏ qua.</string>
+    <string name="notif_title_today">%1$s đến hạn hôm nay</string>
+    <plurals name="notif_body">
+        <item quantity="other">Thanh toán %1$s sau %2$d ngày nữa, ngày %3$s</item>
+    </plurals>
+    <string name="notif_body_today">Thanh toán %1$s hôm nay</string>
+    <string name="notif_action_paid">Đã trả</string>
+    <string name="notif_action_snooze">Nhắc sau 1 ngày</string>
+    <string name="notif_test_title">Thông báo thử</string>
+    <string name="notif_test_body">Nhắc hạn thanh toán đang hoạt động trên máy của bạn.</string>
+
+    <!-- File CSV -->
+    <string name="csv_header">Tên dịch vụ,Số tiền,Tiền tệ,Chu kỳ,Ngày thanh toán tiếp theo,Danh mục,Trạng thái,Nhắc trước (ngày),Tag,Nền tảng,Liên kết quản lý,Ghi chú</string>
+
+    <!-- Màn hình xem gói -->
+    <string name="due_pending">Chờ xác nhận</string>
+    <string name="pending_count">Gói chờ xác nhận</string>
+    <string name="action_paid">Đã trả</string>
+    <string name="action_skip">Bỏ qua kỳ này</string>
+    <string name="action_snooze">Nhắc lại sau</string>
+    <string name="snooze_1d">1 ngày</string>
+    <string name="snooze_3d">3 ngày</string>
+    <string name="action_cancel_sub">Đã hủy</string>
+    <string name="action_reactivate">Kích hoạt lại</string>
+    <string name="action_undo">Hoàn tác</string>
+    <string name="section_this_period">Kỳ này</string>
+    <string name="history_title">Lịch sử chi trả</string>
+    <string name="history_empty">Chưa có kỳ nào được xử lý</string>
+    <string name="history_skipped">Bỏ qua</string>
+    <string name="paid_total">Đã chi: %1$s (%2$d lần)</string>
+    <string name="paid_dialog_title">Ghi nhận đã trả</string>
+    <string name="paid_dialog_date">Ngày trả: %1$s</string>
+    <string name="reactivate_dialog_title">Chọn ngày thanh toán tới</string>
+    <string name="msg_already_recorded">Kỳ này đã được ghi nhận.</string>
+    <string name="msg_paid">Đã ghi nhận thanh toán</string>
+    <string name="msg_skipped">Đã bỏ qua kỳ này</string>
+    <string name="msg_snoozed">Sẽ nhắc lại sau</string>
+    <string name="msg_cancelled">Đã hủy gói</string>
+    <string name="msg_reactivated">Đã kích hoạt lại gói</string>
 </resources>

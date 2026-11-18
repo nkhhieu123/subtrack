@@ -57,4 +57,27 @@ data class Subscription(
     val platforms: List<Platform> = emptyList(),
     val createdAt: Long = 0,
     val updatedAt: Long = 0,
+    /** Không nhắc trước ngày này (hoãn nhắc); null = không hoãn. */
+    val snoozedUntil: LocalDate? = null,
+    /** Ngày gửi thông báo gần nhất cho kỳ hiện tại; null = chưa nhắc. */
+    val lastNotifiedOn: LocalDate? = null,
+)
+
+enum class PaymentKind { PAID, SKIPPED }
+
+/**
+ * Kết quả xử lý một kỳ của một gói. Tên, danh mục, số tiền, tiền tệ được chụp lại lúc ghi
+ * nên vẫn đúng khi gói bị sửa/xóa ([subscriptionId] = null khi gói đã bị xóa).
+ */
+data class Payment(
+    val id: Long = 0,
+    val subscriptionId: Long?,
+    val subscriptionName: String,
+    val category: Category,
+    val periodDate: LocalDate,
+    val kind: PaymentKind,
+    val paidDate: LocalDate?,
+    val amount: Double?,
+    val currency: Currency?,
+    val createdAt: Long = 0,
 )

@@ -3,8 +3,13 @@ package com.nhom4.subtrack.ui
 import androidx.annotation.StringRes
 import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.padding
+import androidx.compose.ui.platform.LocalContext
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.nhom4.subtrack.SubTrackApp
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.Label
+import androidx.compose.material.icons.outlined.BarChart
+import androidx.compose.material.icons.outlined.Folder
+import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.Subscriptions
 import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationBar
@@ -12,6 +17,7 @@ import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -24,29 +30,41 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.nhom4.subtrack.R
+import com.nhom4.subtrack.ui.detail.DetailScreen
 import com.nhom4.subtrack.ui.edit.EditScreen
 import com.nhom4.subtrack.ui.list.ListScreen
-import com.nhom4.subtrack.ui.tags.TagsScreen
+import com.nhom4.subtrack.ui.organize.OrganizeScreen
+import com.nhom4.subtrack.ui.reports.ReportsScreen
+import com.nhom4.subtrack.ui.settings.SettingsScreen
 
-/** Hai tab ở thanh điều hướng dưới cùng. */
 private enum class Tab(val route: String, @StringRes val label: Int, val icon: ImageVector) {
     LIST("list", R.string.tab_subscriptions, Icons.Outlined.Subscriptions),
-    TAGS("tags", R.string.tab_tags, Icons.Outlined.Label),
+    ORGANIZE("organize", R.string.tab_organize, Icons.Outlined.Folder),
+    REPORTS("reports", R.string.tab_reports, Icons.Outlined.BarChart),
+    SETTINGS("settings", R.string.tab_settings, Icons.Outlined.Settings),
 }
 
-/** Màn hình form: edit/0 = thêm mới, edit/{id} = sửa/xóa gói có id đó. */
 private const val EDIT_ROUTE = "edit/{id}"
 private fun editRoute(id: Long) = "edit/$id"
+private const val DETAIL_ROUTE = "detail/{id}"
+private fun detailRoute(id: Long) = "detail/$id"
 
-/**
- * Gốc giao diện: thanh tab + NavHost.
- *   Gói đăng ký (list) ──nút Thêm──▶ edit/0
- *                      ──chạm gói──▶ edit/{id}
- *   Tag (tags)
- */
 @Composable
-fun SubTrackRoot() {
+fun SubTrackRoot(openSubscriptionId: Long? = null, onOpenedSubscription: () -> Unit = {}) {
+    val app = LocalContext.current.applicationContext as SubTrackApp
+    val settings by app.settings.settings.collectAsStateWithLifecycle()
+    if (!settings.onboardingDone) {
+        OnboardingScreen(onStart = app.settings::setOnboardingDone)
+        return
+    }
+
     val nav = rememberNavController()
+    LaunchedEffect(openSubscriptionId) {
+        openSubscriptionId?.let {
+            nav.navigate(detailRoute(it)) { launchSingleTop = true }
+            onOpenedSubscription()
+        }
+    }
     val backStack by nav.currentBackStackEntryAsState()
     val currentRoute = backStack?.destination?.route
     val showBar = Tab.entries.any { it.route == currentRoute }
@@ -79,13 +97,20 @@ fun SubTrackRoot() {
             modifier = Modifier.padding(padding).consumeWindowInsets(padding),
         ) {
             composable(Tab.LIST.route) {
-                ListScreen(onOpen = { nav.navigate(editRoute(it)) }, onAdd = { nav.navigate(editRoute(0)) })
+                ListScreen(onOpen = { nav.navigate(detailRoute(it)) { launchSingleTop = true } }, onAdd = { nav.navigate(editRoute(0)) })
             }
-            composable(Tab.TAGS.route) { TagsScreen() }
+            composable(Tab.ORGANIZE.route) { OrganizeScreen() }
+            composable(Tab.REPORTS.route) { ReportsScreen() }
+            composable(Tab.SETTINGS.route) { SettingsScreen() }
+            composable(DETAIL_ROUTE, arguments = listOf(navArgument("id") { type = NavType.LongType })) { entry ->
+                val id = entry.arguments?.getLong("id") ?: 0L
+                DetailScreen(id, onBack = { nav.popBackStack() }, onEdit = { nav.navigate(editRoute(id)) })
+            }
             composable(EDIT_ROUTE, arguments = listOf(navArgument("id") { type = NavType.LongType })) { entry ->
                 EditScreen(
                     subscriptionId = entry.arguments?.getLong("id") ?: 0L,
                     onDone = { nav.popBackStack() },
+                    onDeleted = { nav.popBackStack(Tab.LIST.route, inclusive = false) },
                 )
             }
         }
