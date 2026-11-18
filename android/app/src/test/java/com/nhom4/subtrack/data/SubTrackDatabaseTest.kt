@@ -135,6 +135,18 @@ class SubTrackDatabaseTest {
     }
 
     @Test
+    fun upsert_changedStatus_resetsReminderState() {
+        val helper = SubTrackDatabase(context)
+        val id = helper.upsertSubscription(sub())
+        helper.setReminderState(id, d1, d2)
+        helper.upsertSubscription(sub().copy(id = id, status = SubscriptionStatus.PAUSED))
+        val s = helper.getSubscriptions().single()
+        assertNull(s.snoozedUntil)
+        assertNull(s.lastNotifiedOn)
+        helper.close()
+    }
+
+    @Test
     fun payments_uniquePerPeriod() {
         val helper = SubTrackDatabase(context)
         val id = helper.upsertSubscription(sub())
