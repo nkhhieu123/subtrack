@@ -14,6 +14,7 @@ import com.nhom4.subtrack.data.Tag
 import com.nhom4.subtrack.data.UndoToken
 import com.nhom4.subtrack.domain.BillingMath
 import com.nhom4.subtrack.reminder.Reminders
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -92,6 +93,10 @@ class DetailViewModel(private val app: SubTrackApp, private val id: Long) : View
             try {
                 block()
                 if (app.settings.settings.value.remindersEnabled) Reminders.checkNow(app)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (_: Exception) {
+                _events.send(DetailEvent.Message(R.string.save_failed, null))
             } finally {
                 busy.value = false
             }
