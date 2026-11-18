@@ -9,7 +9,12 @@ import java.time.LocalDate
 
 /** Lớp truy cập SQLite. Chỉ Repository gọi trực tiếp lớp này. */
 class SubTrackDatabase(context: Context) :
-    SQLiteOpenHelper(context, "subtrack.db", null, 1) {
+    SQLiteOpenHelper(context, DB_NAME, null, DB_VERSION) {
+
+    companion object {
+        const val DB_NAME = "subtrack.db"
+        const val DB_VERSION = 4
+    }
 
     override fun onConfigure(db: SQLiteDatabase) {
         db.setForeignKeyConstraintsEnabled(true)
@@ -32,7 +37,9 @@ class SubTrackDatabase(context: Context) :
                 notes TEXT,
                 platforms TEXT NOT NULL DEFAULT '',
                 created_at INTEGER NOT NULL,
-                updated_at INTEGER NOT NULL
+                updated_at INTEGER NOT NULL,
+                snoozed_until INTEGER,
+                last_notified_on INTEGER
             )
             """.trimIndent()
         )
@@ -46,9 +53,49 @@ class SubTrackDatabase(context: Context) :
             )
             """.trimIndent()
         )
+        createPayments(db)
     }
 
-    override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) = Unit
+    /** v1 và v3 có cùng cột ở bảng subscriptions nên dùng chung một nhánh nâng cấp. */
+    override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
+        if (oldVersion < 4) {
+            db.execSQL("ALTER TABLE subscriptions ADD COLUMN snoozed_until INTEGER")
+            db.execSQL("ALTER TABLE subscriptions ADD COLUMN last_notified_on INTEGER")
+            createPayments(db)
+        }
+    }
+
+    private fun createPayments(db: SQLiteDatabase) {
+        db.execSQL(
+            """
+            CREATE TABLE payments (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                subscription_id INTEGER REFERENCES subscriptions(id) ON DELETE SET NULL,
+                subscription_name TEXT NOT NULL,
+                category TEXT NOT NULL,
+                period_date INTEGER NOT NULL,
+                kind TEXT NOT NULL CHECK (kind IN ('PAID','SKIPPED')),
+                paid_date INTEGER,
+                amount REAL CHECK (amount IS NULL OR amount >= 0),
+                currency TEXT,
+                created_at INTEGER NOT NULL,
+                UNIQUE (subscription_id, period_date)
+            )
+            """.trimIndent()
+        )
+        db.execSQL("CREATE INDEX idx_payments_paid_date ON payments(paid_date)")
+    }
+
+    /** Chạy [block] trong một giao dịch; ném lỗi thì hoàn tác. */
+    fun <T> inTransaction(block: () -> T): T {
+        val db = writableDatabase
+        db.beginTransaction()
+        try {
+            return block().also { db.setTransactionSuccessful() }
+        } finally {
+            db.endTransaction()
+        }
+    }
 
     // ---------- Subscriptions ----------
 
@@ -85,6 +132,15 @@ class SubTrackDatabase(context: Context) :
                 values.put("created_at", now)
                 db.insertOrThrow("subscriptions", null, values)
             } else {
+                // Đổi hạn hoặc trạng thái thì kỳ nhắc cũ không còn đúng: xóa trạng thái nhắc
+                val changed = db.rawQuery(
+                    "SELECT 1 FROM subscriptions WHERE id = ? AND (next_payment_date <> ? OR status <> ?)",
+                    arrayOf(sub.id.toString(), sub.nextPaymentDate.toEpochDay().toString(), sub.status.name),
+                ).use { it.moveToFirst() }
+                if (changed) {
+                    values.putNull("snoozed_until")
+                    values.putNull("last_notified_on")
+                }
                 db.update("subscriptions", values, "id = ?", arrayOf(sub.id.toString()))
                 sub.id
             }
@@ -110,8 +166,56 @@ class SubTrackDatabase(context: Context) :
         )
     }
 
+    fun setStatusAndDate(id: Long, status: SubscriptionStatus, next: LocalDate) {
+        writableDatabase.update(
+            "subscriptions",
+            ContentValues().apply {
+                put("status", status.name)
+                put("next_payment_date", next.toEpochDay())
+            },
+            "id = ?", arrayOf(id.toString()),
+        )
+    }
+
+    fun setReminderState(id: Long, snoozedUntil: LocalDate?, lastNotifiedOn: LocalDate?) {
+        writableDatabase.update(
+            "subscriptions",
+            ContentValues().apply {
+                if (snoozedUntil == null) putNull("snoozed_until") else put("snoozed_until", snoozedUntil.toEpochDay())
+                if (lastNotifiedOn == null) putNull("last_notified_on") else put("last_notified_on", lastNotifiedOn.toEpochDay())
+            },
+            "id = ?", arrayOf(id.toString()),
+        )
+    }
+
     fun deleteSubscription(id: Long) {
         writableDatabase.delete("subscriptions", "id = ?", arrayOf(id.toString()))
+    }
+
+    // ---------- Payments ----------
+
+    /** Mới nhất trước. */
+    fun getPayments(): List<Payment> =
+        readableDatabase.rawQuery("SELECT * FROM payments ORDER BY period_date DESC, id DESC", null).use { c ->
+            buildList { while (c.moveToNext()) add(c.toPayment()) }
+        }
+
+    /** Ném SQLiteConstraintException nếu kỳ này của gói đã có dòng. */
+    fun insertPayment(p: Payment): Long =
+        writableDatabase.insertOrThrow("payments", null, ContentValues().apply {
+            if (p.subscriptionId == null) putNull("subscription_id") else put("subscription_id", p.subscriptionId)
+            put("subscription_name", p.subscriptionName)
+            put("category", p.category.key)
+            put("period_date", p.periodDate.toEpochDay())
+            put("kind", p.kind.name)
+            if (p.paidDate == null) putNull("paid_date") else put("paid_date", p.paidDate.toEpochDay())
+            if (p.amount == null) putNull("amount") else put("amount", p.amount)
+            if (p.currency == null) putNull("currency") else put("currency", p.currency.name)
+            put("created_at", p.createdAt.takeIf { it != 0L } ?: System.currentTimeMillis())
+        })
+
+    fun deletePayment(id: Long) {
+        writableDatabase.delete("payments", "id = ?", arrayOf(id.toString()))
     }
 
     // ---------- Tags ----------
@@ -143,7 +247,24 @@ class SubTrackDatabase(context: Context) :
             delete("subscription_tags", null, null)
             delete("subscriptions", null, null)
             delete("tags", null, null)
+            delete("payments", null, null)
         }
+    }
+
+    private fun Cursor.toPayment(): Payment {
+        fun longOrNull(col: String) = getColumnIndexOrThrow(col).let { if (isNull(it)) null else getLong(it) }
+        return Payment(
+            id = getLong(getColumnIndexOrThrow("id")),
+            subscriptionId = longOrNull("subscription_id"),
+            subscriptionName = getString(getColumnIndexOrThrow("subscription_name")),
+            category = Category.fromKey(getString(getColumnIndexOrThrow("category"))),
+            periodDate = LocalDate.ofEpochDay(getLong(getColumnIndexOrThrow("period_date"))),
+            kind = PaymentKind.valueOf(getString(getColumnIndexOrThrow("kind"))),
+            paidDate = longOrNull("paid_date")?.let(LocalDate::ofEpochDay),
+            amount = getColumnIndexOrThrow("amount").let { if (isNull(it)) null else getDouble(it) },
+            currency = getColumnIndexOrThrow("currency").let { if (isNull(it)) null else Currency.valueOf(getString(it)) },
+            createdAt = getLong(getColumnIndexOrThrow("created_at")),
+        )
     }
 
     private fun Cursor.toSubscription(tagMap: Map<Long, List<Long>>): Subscription {
@@ -166,6 +287,8 @@ class SubTrackDatabase(context: Context) :
             tagIds = tagMap[id].orEmpty(),
             createdAt = getLong(getColumnIndexOrThrow("created_at")),
             updatedAt = getLong(getColumnIndexOrThrow("updated_at")),
+            snoozedUntil = getColumnIndexOrThrow("snoozed_until").let { if (isNull(it)) null else LocalDate.ofEpochDay(getLong(it)) },
+            lastNotifiedOn = getColumnIndexOrThrow("last_notified_on").let { if (isNull(it)) null else LocalDate.ofEpochDay(getLong(it)) },
         )
     }
 }

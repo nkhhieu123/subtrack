@@ -31,6 +31,10 @@ android {
     buildFeatures {
         compose = true
     }
+    // Robolectric chạy test tầng dữ liệu (SQLite) ngay trên JVM, không cần máy ảo
+    testOptions {
+        unitTests.isIncludeAndroidResources = true
+    }
     // Ứng dụng luôn hiển thị tiếng Việt nên không tách gói ngôn ngữ khi phát hành AAB
     bundle {
         language {
@@ -54,4 +58,6 @@ dependencies {
     implementation(libs.androidx.work.runtime.ktx)
     debugImplementation(libs.androidx.compose.ui.tooling)
     testImplementation(libs.junit)
+    testImplementation(libs.robolectric)
+    testImplementation(libs.androidx.test.core)
 }
