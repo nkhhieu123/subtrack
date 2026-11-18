@@ -92,11 +92,16 @@ class DetailViewModel(private val app: SubTrackApp, private val id: Long) : View
         viewModelScope.launch {
             try {
                 block()
-                if (app.settings.settings.value.remindersEnabled) Reminders.checkNow(app)
             } catch (e: CancellationException) {
                 throw e
             } catch (_: Exception) {
                 _events.send(DetailEvent.Message(R.string.save_failed, null))
+                busy.value = false
+                return@launch
+            }
+            try {
+                // Lên lịch kiểm tra nhắc hạn chỉ là phụ: lỗi ở đây không được báo như lỗi lưu.
+                if (app.settings.settings.value.remindersEnabled) runCatching { Reminders.checkNow(app) }
             } finally {
                 busy.value = false
             }
