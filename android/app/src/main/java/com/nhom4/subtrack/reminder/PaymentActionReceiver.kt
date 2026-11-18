@@ -21,14 +21,14 @@ class PaymentActionReceiver : BroadcastReceiver() {
         val pending = goAsync()
         CoroutineScope(Dispatchers.IO).launch {
             try {
-                // Lỗi CSDL không được làm sập tiến trình khi bấm nút trong thông báo
-                runCatching {
-                    when (action) {
-                        ACTION_PAID -> repo.markPaid(id, period)
-                        ACTION_SNOOZE -> repo.snooze(id, 1)
-                    }
+                // Lỗi CSDL không được làm sập tiến trình; giữ thông báo để người dùng thử lại
+                val done = when (action) {
+                    // null ở đây là kỳ đã cũ: không còn gì để làm
+                    ACTION_PAID -> runCatching { repo.markPaid(id, period) }.isSuccess
+                    ACTION_SNOOZE -> runCatching { repo.snooze(id, 1) }.getOrNull() != null
+                    else -> false
                 }
-                NotificationManagerCompat.from(context).cancel(id.toInt())
+                if (done) NotificationManagerCompat.from(context).cancel(id.toInt())
             } finally {
                 pending.finish()
             }
