@@ -46,14 +46,14 @@ Chạy kiểm thử: `gradlew.bat testDebugUnitTest lintDebug`.
 - **Báo cáo**: tổng chi phí mỗi tuần / tháng / quý / năm; mục "Chi thực tế" (tháng này, năm nay, 6 tháng gần nhất, theo danh mục trong 12 tháng) bên cạnh mục "Ước tính"; biểu đồ tròn cơ cấu chi phí (gộp "Các gói khác" khi nhiều hơn 6 gói); chi phí theo danh mục; 3 gói tốn kém nhất; chọn tiền tệ báo cáo (không quy đổi tỷ giá, có ghi chú số gói bị loại).
 - **Nhắc hạn**: WorkManager kiểm tra mỗi ngày và ngay sau khi lưu gói; nhắc một lần khi vào khoảng nhắc, một lần vào đúng ngày đến hạn, và mỗi 3 ngày khi quá hạn; có nhắc lại sau; thông báo có nút "Đã trả" và "Nhắc sau 1 ngày"; xin quyền thông báo trên Android 13+; nút gửi thông báo thử.
 - **Cài đặt**: tiền tệ mặc định, bật/tắt nhắc hạn, xuất CSV (UTF-8, mở được bằng Excel), chia sẻ báo cáo chi phí dạng văn bản, thêm 5 gói mẫu (ghi chú rõ "Gói mẫu để demo"), xóa toàn bộ dữ liệu (có xác nhận), giới thiệu.
-- **Lưu trữ**: SQLite trên máy (bảng `subscriptions`, `tags`, `subscription_tags`, `payments`), truy cập qua Repository; đóng mở app dữ liệu vẫn còn.
+- **Lưu trữ**: SQLite trên máy (bảng `subscriptions`, `tags`, `subscription_tags`, `payments`), truy cập qua Repository; đóng mở app dữ liệu vẫn còn. Nâng cấp dữ liệu từ bản v1 (nhánh main) và v3 (nhánh tuan3) không mất gói/tag; bản v2 không được hỗ trợ.
 - **Việt hóa**: mọi chuỗi nằm trong `res/values/strings.xml` (tiếng Việt là mặc định); ứng dụng ép locale `vi-VN` nên DatePicker, định dạng tiền (260.000 ₫) và ngày (dd/MM/yyyy) đều theo tiếng Việt dù máy đặt ngôn ngữ khác. Chỉ giữ nguyên tên riêng (Android, iPhone, PlayStation…) và mã tiền tệ.
 - **Giao diện sáng / tối** theo cài đặt hệ thống.
 
 ## Đã kiểm thử
 
 - `assembleDebug`: build thành công.
-- `testDebugUnitTest`: 12/12 test qua (quy đổi chi phí theo chu kỳ, tổng chi theo tiền tệ, cuộn ngày thanh toán, cuối tháng, mức báo gia hạn, đọc số tiền VND/USD, kiểm tra URL, điều kiện nhắc hạn, số liệu báo cáo, CSV, định dạng tiền tiếng Việt). Unit test đã phát hiện và giúp sửa một lỗi đọc số tiền (`1.2.3.4` từng được chấp nhận).
+- `testDebugUnitTest`: 42/42 test qua, gồm: quy đổi chi phí theo chu kỳ, tổng chi theo tiền tệ, cuộn ngày thanh toán, cuối tháng, mức báo gia hạn, đọc số tiền VND/USD, kiểm tra URL, điều kiện nhắc hạn, số liệu báo cáo, CSV, định dạng tiền tiếng Việt (BillingMathTest: 24); hành động thanh toán như Đã trả, Bỏ qua, Nhắc lại sau, Hoàn tác, Kích hoạt lại và trạng thái nhắc hạn (PaymentActionsTest: 11); cơ sở dữ liệu SQLite, lịch sử chi trả và nâng cấp schema từ v1/v3 lên v4 (SubTrackDatabaseTest: 7). Unit test đã phát hiện và giúp sửa một lỗi đọc số tiền (`1.2.3.4` từng được chấp nhận).
 - `lintDebug`: không còn lỗi.
 
 ## Chưa hoàn thành / giới hạn
