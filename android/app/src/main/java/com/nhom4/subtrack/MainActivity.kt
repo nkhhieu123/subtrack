@@ -33,7 +33,8 @@ class MainActivity : ComponentActivity() {
 
     private fun readOpenExtra(intent: Intent?) {
         val id = intent?.getLongExtra(EXTRA_OPEN_SUBSCRIPTION, -1L) ?: -1L
-        if (id > 0) openSubscriptionId = id
+        val fromHistory = intent?.flags?.and(Intent.FLAG_ACTIVITY_LAUNCHED_FROM_HISTORY) != 0
+        if (id > 0 && !fromHistory) openSubscriptionId = id
         // Chỉ dùng một lần: xoay màn hình / tạo lại activity không điều hướng lại.
         intent?.removeExtra(EXTRA_OPEN_SUBSCRIPTION)
     }

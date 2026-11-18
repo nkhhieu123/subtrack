@@ -11,6 +11,7 @@ import com.nhom4.subtrack.domain.RenewalLevel
 import com.nhom4.subtrack.domain.SpendMath
 import java.time.YearMonth
 import com.nhom4.subtrack.reminder.ReminderWorker
+import com.nhom4.subtrack.reminder.Reminders
 import com.nhom4.subtrack.data.Payment
 import com.nhom4.subtrack.data.PaymentKind
 import com.nhom4.subtrack.ui.detail.DetailViewModel
@@ -247,6 +248,13 @@ class BillingMathTest {
             )
         )
         assertEquals(mapOf(Currency.VND to 260000.0, Currency.USD to 5.0), totals)
+    }
+
+    @Test
+    fun notif_kindByDays() {
+        assertEquals(Reminders.NotifText.TODAY, Reminders.textKind(0))
+        assertEquals(Reminders.NotifText.UPCOMING, Reminders.textKind(3))
+        assertEquals(Reminders.NotifText.OVERDUE, Reminders.textKind(-3))
     }
 
     @Test

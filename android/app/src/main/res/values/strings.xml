@@ -241,6 +241,8 @@
     <string name="channel_name">Nhắc hạn thanh toán</string>
     <string name="channel_desc">Nhắc trước khi gói đăng ký đến ngày thanh toán</string>
     <string name="notif_title">%1$s sắp đến hạn</string>
+    <string name="notif_title_overdue">%1$s đã quá hạn – chờ xác nhận</string>
+    <string name="notif_body_overdue">Kỳ %2$s (%1$s) chưa được xác nhận. Chạm để đánh dấu đã trả hoặc bỏ qua.</string>
     <string name="notif_title_today">%1$s đến hạn hôm nay</string>
     <plurals name="notif_body">
         <item quantity="other">Thanh toán %1$s sau %2$d ngày nữa, ngày %3$s</item>
@@ -273,6 +275,7 @@
     <string name="paid_dialog_title">Ghi nhận đã trả</string>
     <string name="paid_dialog_date">Ngày trả: %1$s</string>
     <string name="reactivate_dialog_title">Chọn ngày thanh toán tới</string>
+    <string name="msg_already_recorded">Kỳ này đã được ghi nhận.</string>
     <string name="msg_paid">Đã ghi nhận thanh toán</string>
     <string name="msg_skipped">Đã bỏ qua kỳ này</string>
     <string name="msg_snoozed">Sẽ nhắc lại sau</string>

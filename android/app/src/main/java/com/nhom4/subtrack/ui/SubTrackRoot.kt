@@ -61,7 +61,7 @@ fun SubTrackRoot(openSubscriptionId: Long? = null, onOpenedSubscription: () -> U
     val nav = rememberNavController()
     LaunchedEffect(openSubscriptionId) {
         openSubscriptionId?.let {
-            nav.navigate(detailRoute(it))
+            nav.navigate(detailRoute(it)) { launchSingleTop = true }
             onOpenedSubscription()
         }
     }
@@ -97,7 +97,7 @@ fun SubTrackRoot(openSubscriptionId: Long? = null, onOpenedSubscription: () -> U
             modifier = Modifier.padding(padding).consumeWindowInsets(padding),
         ) {
             composable(Tab.LIST.route) {
-                ListScreen(onOpen = { nav.navigate(detailRoute(it)) }, onAdd = { nav.navigate(editRoute(0)) })
+                ListScreen(onOpen = { nav.navigate(detailRoute(it)) { launchSingleTop = true } }, onAdd = { nav.navigate(editRoute(0)) })
             }
             composable(Tab.ORGANIZE.route) { OrganizeScreen() }
             composable(Tab.REPORTS.route) { ReportsScreen() }

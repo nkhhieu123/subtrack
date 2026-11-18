@@ -82,7 +82,9 @@ class DetailViewModel(private val app: SubTrackApp, private val id: Long) : View
     private fun act(@StringRes message: Int, op: suspend (Subscription) -> UndoToken?) {
         val sub = state.value.sub ?: return
         launchBusy {
-            op(sub)?.let { _events.send(DetailEvent.Message(message, it)) }
+            val token = op(sub)
+            if (token != null) _events.send(DetailEvent.Message(message, token))
+            else _events.send(DetailEvent.Message(R.string.msg_already_recorded, null))
         }
     }
 
@@ -99,6 +101,7 @@ class DetailViewModel(private val app: SubTrackApp, private val id: Long) : View
                     _events.send(DetailEvent.Message(R.string.save_failed, null))
                     return@launch
                 }
+                runCatching { Reminders.cancelFor(app, id) }
                 // Lên lịch kiểm tra nhắc hạn chỉ là phụ: lỗi ở đây không được báo như lỗi lưu.
                 if (app.settings.settings.value.remindersEnabled) runCatching { Reminders.checkNow(app) }
             } finally {

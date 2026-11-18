@@ -107,13 +107,27 @@ object Reminders {
         Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU ||
             ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED
 
+    enum class NotifText { TODAY, UPCOMING, OVERDUE }
+
+    fun textKind(days: Long): NotifText = when {
+        days == 0L -> NotifText.TODAY
+        days < 0 -> NotifText.OVERDUE
+        else -> NotifText.UPCOMING
+    }
+
+    /** Gỡ thông báo của gói khỏi khay sau khi người dùng đã xử lý trong ứng dụng. */
+    fun cancelFor(context: Context, id: Long) = NotificationManagerCompat.from(context).cancel(id.toInt())
+
     /** Trả về true nếu thông báo đã được gửi cho hệ thống. */
     fun notifyDue(context: Context, sub: Subscription, days: Long): Boolean {
         val money = formatMoney(sub.amount, sub.currency)
-        val title = if (days == 0L) context.getString(R.string.notif_title_today, sub.name)
-        else context.getString(R.string.notif_title, sub.name)
-        val body = if (days == 0L) context.getString(R.string.notif_body_today, money)
-        else context.resources.getQuantityString(R.plurals.notif_body, days.toInt(), money, days.toInt(), formatDate(sub.nextPaymentDate))
+        val date = formatDate(sub.nextPaymentDate)
+        val (title, body) = when (textKind(days)) {
+            NotifText.TODAY -> context.getString(R.string.notif_title_today, sub.name) to context.getString(R.string.notif_body_today, money)
+            NotifText.OVERDUE -> context.getString(R.string.notif_title_overdue, sub.name) to context.getString(R.string.notif_body_overdue, money, date)
+            NotifText.UPCOMING -> context.getString(R.string.notif_title, sub.name) to
+                context.resources.getQuantityString(R.plurals.notif_body, days.toInt(), money, days.toInt(), date)
+        }
         return post(context, sub.id.toInt(), title, body, sub)
     }
 
