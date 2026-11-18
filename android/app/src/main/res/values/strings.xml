@@ -189,6 +189,15 @@
     <string name="others">Các gói khác</string>
     <string name="chart_description">Biểu đồ tròn cơ cấu chi phí theo gói</string>
 
+    <string name="reports_actual_title">Chi thực tế</string>
+    <string name="reports_estimated_title">Ước tính</string>
+    <string name="actual_this_month">Tháng này</string>
+    <string name="actual_this_year">Năm nay</string>
+    <string name="actual_last_months">6 tháng gần nhất</string>
+    <string name="actual_by_category">Theo danh mục (12 tháng)</string>
+    <string name="actual_empty">Chưa có khoản chi nào được ghi nhận.</string>
+    <string name="actual_month_label">Th%1$d/%2$d</string>
+
     <!-- Cài đặt -->
     <string name="settings_title">Cài đặt</string>
     <string name="settings_general">Chung</string>

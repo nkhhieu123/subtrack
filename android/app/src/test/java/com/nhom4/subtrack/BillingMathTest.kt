@@ -8,6 +8,8 @@ import com.nhom4.subtrack.data.SubscriptionStatus
 import com.nhom4.subtrack.domain.BillingMath
 import com.nhom4.subtrack.domain.CsvWriter
 import com.nhom4.subtrack.domain.RenewalLevel
+import com.nhom4.subtrack.domain.SpendMath
+import java.time.YearMonth
 import com.nhom4.subtrack.reminder.ReminderWorker
 import com.nhom4.subtrack.data.Payment
 import com.nhom4.subtrack.data.PaymentKind
@@ -151,7 +153,7 @@ class BillingMathTest {
     fun reports_totalsSharesAndOthersSlice() {
         val subs = (1..8).map { sub(it * 10_000.0, BillingCycle.MONTHLY, name = "G$it") } +
             sub(5.0, BillingCycle.MONTHLY, currency = Currency.USD)
-        val r = ReportsViewModel.build(subs, Currency.VND)
+        val r = ReportsViewModel.build(subs, emptyList(), Currency.VND, today)
         assertEquals(360_000.0, r.monthly, 0.001)
         assertEquals(4_320_000.0, r.yearly, 0.001)
         assertEquals(8, r.activeCount)
@@ -160,6 +162,57 @@ class BillingMathTest {
         assertNull(r.slices.last().label) // "Các gói khác"
         assertEquals(100.0, r.slices.sumOf { it.share }, 0.001)
         assertEquals("G8", r.top.first().name)
+    }
+
+    private val now = LocalDate.of(2026, 11, 18)
+
+    private fun paid(date: LocalDate?, amount: Double?, cur: Currency? = Currency.VND, cat: Category = Category.ENTERTAINMENT,
+                     kind: PaymentKind = PaymentKind.PAID, subId: Long? = 1) =
+        Payment(subscriptionId = subId, subscriptionName = "G", category = cat, periodDate = date ?: now,
+            kind = kind, paidDate = date, amount = amount, currency = cur)
+
+    private val sample = listOf(
+        paid(LocalDate.of(2026, 11, 2), 100.0),
+        paid(LocalDate.of(2026, 10, 5), 200.0),
+        paid(LocalDate.of(2025, 12, 30), 300.0),
+    )
+
+    @Test
+    fun actual_monthAndYear() {
+        val r = ReportsViewModel.build(emptyList(), sample, Currency.VND, now)
+        assertEquals(100.0, r.actualThisMonth, 0.001)
+        assertEquals(300.0, r.actualThisYear, 0.001)
+    }
+
+    @Test
+    fun actual_lastSixMonthsIncludesZeros() {
+        val m = SpendMath.lastMonths(sample, Currency.VND, YearMonth.of(2026, 11), 6)
+        assertEquals(6, m.size)
+        assertEquals(YearMonth.of(2026, 6), m.first().first)
+        assertEquals(200.0, m.first { it.first == YearMonth.of(2026, 10) }.second, 0.001)
+        assertEquals(0.0, m.first { it.first == YearMonth.of(2026, 9) }.second, 0.001)
+    }
+
+    @Test
+    fun actual_ignoresSkippedAndOtherCurrency_keepsDeleted() {
+        val p = listOf(
+            paid(null, null, null, kind = PaymentKind.SKIPPED),
+            paid(LocalDate.of(2026, 11, 3), 5.0, Currency.USD),
+            paid(LocalDate.of(2026, 11, 4), 50.0, subId = null),
+        )
+        assertEquals(50.0, ReportsViewModel.build(emptyList(), p, Currency.VND, now).actualThisMonth, 0.001)
+    }
+
+    @Test
+    fun actual_byCategoryUsesSnapshot() {
+        val p = listOf(
+            paid(LocalDate.of(2026, 11, 3), 30.0, cat = Category.MUSIC),
+            paid(LocalDate.of(2026, 11, 4), 100.0),
+        )
+        assertEquals(
+            listOf(Category.ENTERTAINMENT to 100.0, Category.MUSIC to 30.0),
+            SpendMath.byCategory(p, Currency.VND, LocalDate.of(2025, 12, 1), LocalDate.of(2026, 12, 1)),
+        )
     }
 
     @Test

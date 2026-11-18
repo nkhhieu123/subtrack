@@ -102,7 +102,7 @@ class SettingsViewModel(private val app: SubTrackApp) : ViewModel() {
     fun shareReport() {
         val subs = repo.subscriptions.value.orEmpty()
         val currency = settings.value.defaultCurrency
-        val report = ReportsViewModel.build(subs, currency)
+        val report = ReportsViewModel.build(subs, repo.payments.value, currency, LocalDate.now())
         if (report.activeCount == 0) {
             msg(R.string.reports_empty)
             return

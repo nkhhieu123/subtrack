@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -40,6 +41,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -99,10 +101,13 @@ fun ReportsScreen(vm: ReportsViewModel = viewModel(factory = AppViewModels.Facto
                     )
                 }
             }
+            item { SectionHeader(stringResource(R.string.reports_actual_title)) }
+            item { ActualCard(state) }
             if (state.activeCount == 0) {
                 item { EmptyState(Icons.Outlined.PieChart, stringResource(R.string.reports_empty), null) }
                 return@LazyColumn
             }
+            item { SectionHeader(stringResource(R.string.reports_estimated_title)) }
             item { TotalsGrid(state) }
             item {
                 Text(stringResource(R.string.report_rule), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -112,6 +117,43 @@ fun ReportsScreen(vm: ReportsViewModel = viewModel(factory = AppViewModels.Facto
             item { CategoryCard(state) }
             item { SectionHeader(stringResource(R.string.top_title)) }
             item { TopCard(state) }
+        }
+    }
+}
+
+@Composable
+private fun ActualCard(state: ReportsUiState) {
+    WhiteCard {
+        if (!state.hasActual) {
+            Text(stringResource(R.string.actual_empty), color = MaterialTheme.colorScheme.onSurfaceVariant)
+            return@WhiteCard
+        }
+        @Composable
+        fun line(label: String, value: Double) = Row(Modifier.fillMaxWidth().padding(vertical = 3.dp)) {
+            Text(label, Modifier.weight(1f))
+            Text(formatMoney(value, state.currency), fontWeight = FontWeight.SemiBold)
+        }
+        line(stringResource(R.string.actual_this_month), state.actualThisMonth)
+        line(stringResource(R.string.actual_this_year), state.actualThisYear)
+        Spacer(Modifier.height(12.dp))
+        Text(stringResource(R.string.actual_last_months), style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+        val max = state.actualMonths.maxOf { it.second }
+        state.actualMonths.forEach { (m, v) ->
+            Row(Modifier.fillMaxWidth().padding(vertical = 3.dp), verticalAlignment = Alignment.CenterVertically) {
+                Text(stringResource(R.string.actual_month_label, m.monthValue, m.year), Modifier.width(72.dp), style = MaterialTheme.typography.bodySmall)
+                LinearProgressIndicator(
+                    progress = { if (max > 0) (v / max).toFloat() else 0f },
+                    modifier = Modifier.weight(1f).height(8.dp).clip(RoundedCornerShape(4.dp)),
+                    trackColor = MaterialTheme.colorScheme.surfaceVariant,
+                    drawStopIndicator = {},
+                )
+                Text(formatMoney(v, state.currency), Modifier.width(110.dp), style = MaterialTheme.typography.bodySmall, textAlign = TextAlign.End, maxLines = 1)
+            }
+        }
+        if (state.actualCategories.isNotEmpty()) {
+            Spacer(Modifier.height(12.dp))
+            Text(stringResource(R.string.actual_by_category), style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+            state.actualCategories.forEach { (c, v) -> line(stringResource(c.label), v) }
         }
     }
 }
