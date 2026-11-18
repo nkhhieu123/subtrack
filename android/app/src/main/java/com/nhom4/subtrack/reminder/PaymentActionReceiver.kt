@@ -21,9 +21,12 @@ class PaymentActionReceiver : BroadcastReceiver() {
         val pending = goAsync()
         CoroutineScope(Dispatchers.IO).launch {
             try {
-                when (action) {
-                    ACTION_PAID -> repo.markPaid(id, period)
-                    ACTION_SNOOZE -> repo.snooze(id, 1)
+                // Lỗi CSDL không được làm sập tiến trình khi bấm nút trong thông báo
+                runCatching {
+                    when (action) {
+                        ACTION_PAID -> repo.markPaid(id, period)
+                        ACTION_SNOOZE -> repo.snooze(id, 1)
+                    }
                 }
                 NotificationManagerCompat.from(context).cancel(id.toInt())
             } finally {
