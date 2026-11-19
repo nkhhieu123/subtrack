@@ -9,7 +9,9 @@ import com.nhom4.subtrack.data.Payment
 import com.nhom4.subtrack.data.PaymentKind
 import com.nhom4.subtrack.data.Subscription
 import com.nhom4.subtrack.data.SubscriptionStatus
+import com.nhom4.subtrack.data.RatesState
 import com.nhom4.subtrack.domain.BillingMath
+import com.nhom4.subtrack.domain.CurrencyConverter
 import com.nhom4.subtrack.domain.SpendMath
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -28,7 +30,10 @@ data class ReportsUiState(
     val currency: Currency = Currency.VND,
     val monthly: Double = 0.0,
     val activeCount: Int = 0,
+    /** Gói đang hoạt động khác tiền tệ, chưa quy đổi được (chưa có tỷ giá). */
     val excludedCount: Int = 0,
+    /** Có khoản khác tiền tệ đã được quy đổi (gói hoặc lịch sử chi trả). */
+    val converted: Boolean = false,
     /** Tối đa 6 lát; lát cuối có label null = "Các gói khác". */
     val slices: List<Slice> = emptyList(),
     val categories: List<CategoryTotal> = emptyList(),
@@ -52,24 +57,35 @@ class ReportsViewModel(app: SubTrackApp) : ViewModel() {
     private val chosenCurrency = MutableStateFlow<Currency?>(null)
 
     val state: StateFlow<ReportsUiState> =
-        combine(repo.subscriptions, repo.payments, app.settings.settings, chosenCurrency) { subs, payments, settings, chosen ->
+        combine(repo.subscriptions, repo.payments, app.settings.settings, chosenCurrency, app.rates.state) { subs, payments, settings, chosen, rates ->
             if (subs == null) return@combine ReportsUiState()
-            build(subs, payments, chosen ?: settings.defaultCurrency, LocalDate.now())
+            build(subs, payments, chosen ?: settings.defaultCurrency, LocalDate.now(), rates.perUsd)
         }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), ReportsUiState())
 
     init {
         viewModelScope.launch { if (repo.subscriptions.value == null) runCatching { repo.refresh() } }
     }
 
+    val rates: StateFlow<RatesState> = app.rates.state
+    private val ratesRepo = app.rates
+
     fun setCurrency(c: Currency) {
         chosenCurrency.value = c
     }
 
+    fun syncRates() = ratesRepo.syncNow()
+
     companion object {
-        fun build(subs: List<Subscription>, payments: List<Payment>, currency: Currency, today: LocalDate): ReportsUiState {
+        fun build(
+            subs: List<Subscription>,
+            payments: List<Payment>,
+            currency: Currency,
+            today: LocalDate,
+            perUsd: Map<Currency, Double>? = null,
+        ): ReportsUiState {
             val active = subs.filter { it.status == SubscriptionStatus.ACTIVE }
-            val inCurrency = active.filter { it.currency == currency }
-            val costs = inCurrency.map { it to BillingMath.monthlyCost(it.amount, it.cycle) }.sortedByDescending { it.second }
+            val costs = active.mapNotNull { s -> BillingMath.monthlyIn(s, currency, perUsd)?.let { s to it } }
+                .sortedByDescending { it.second }
             val total = costs.sumOf { it.second }
             fun share(v: Double) = if (total > 0) v / total * 100 else 0.0
 
@@ -79,29 +95,35 @@ class ReportsViewModel(app: SubTrackApp) : ViewModel() {
                 costs.take(5).map { (s, m) -> Slice(s.name, m, share(m)) } +
                     costs.drop(5).sumOf { it.second }.let { Slice(null, it, share(it)) }
             }
-            val categories = inCurrency.groupBy { it.category }
-                .map { (c, list) -> list.sumOf { BillingMath.monthlyCost(it.amount, it.cycle) }.let { CategoryTotal(c, it, share(it)) } }
+            val categories = costs.groupBy { it.first.category }
+                .map { (c, list) -> list.sumOf { it.second }.let { CategoryTotal(c, it, share(it)) } }
                 .sortedByDescending { it.monthly }
 
             val month = YearMonth.from(today)
             val yearStart = LocalDate.of(today.year, 1, 1)
             val windowStart = month.minusMonths(11).atDay(1)
             val windowEnd = month.plusMonths(1).atDay(1)
+            val paidActual = payments.filter {
+                val cur = it.currency
+                it.kind == PaymentKind.PAID && it.amount != null && cur != null &&
+                    CurrencyConverter.convert(1.0, cur, currency, perUsd) != null
+            }
 
             return ReportsUiState(
                 loading = false,
                 currency = currency,
                 monthly = total,
-                activeCount = inCurrency.size,
-                excludedCount = active.size - inCurrency.size,
+                activeCount = costs.size,
+                excludedCount = active.size - costs.size,
+                converted = costs.any { it.first.currency != currency } || paidActual.any { it.currency != currency },
                 slices = slices,
                 categories = categories,
                 top = costs.take(3).map { it.first },
-                hasActual = payments.any { it.kind == PaymentKind.PAID && it.currency == currency },
-                actualThisMonth = SpendMath.total(payments, currency, month.atDay(1), windowEnd),
-                actualThisYear = SpendMath.total(payments, currency, yearStart, yearStart.plusYears(1)),
-                actualMonths = SpendMath.lastMonths(payments, currency, month, 6),
-                actualCategories = SpendMath.byCategory(payments, currency, windowStart, windowEnd),
+                hasActual = paidActual.isNotEmpty(),
+                actualThisMonth = SpendMath.total(payments, currency, month.atDay(1), windowEnd, perUsd),
+                actualThisYear = SpendMath.total(payments, currency, yearStart, yearStart.plusYears(1), perUsd),
+                actualMonths = SpendMath.lastMonths(payments, currency, month, 6, perUsd),
+                actualCategories = SpendMath.byCategory(payments, currency, windowStart, windowEnd, perUsd),
             )
         }
     }

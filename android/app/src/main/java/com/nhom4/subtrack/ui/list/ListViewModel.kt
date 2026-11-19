@@ -37,7 +37,10 @@ data class ListUiState(
     val tags: Map<Long, Tag> = emptyMap(),
     val currency: Currency = Currency.VND,
     val monthlyTotal: Double = 0.0,
+    /** Gói khác tiền tệ chưa quy đổi được (chưa có tỷ giá). */
     val otherCurrencyCount: Int = 0,
+    /** Gói khác tiền tệ đã quy đổi vào [monthlyTotal]. */
+    val convertedCount: Int = 0,
     val activeCount: Int = 0,
     val dueSoonCount: Int = 0,
     val pendingCount: Int = 0,
@@ -50,20 +53,22 @@ class ListViewModel(private val app: SubTrackApp) : ViewModel() {
     private val error = MutableStateFlow(false)
 
     val state: StateFlow<ListUiState> = combine(
-        repo.subscriptions, repo.tags, app.settings.settings, _filters, error,
-    ) { subs, tags, settings, filters, hasError ->
+        repo.subscriptions, repo.tags, app.settings.settings.combine(app.rates.state) { s, r -> s to r.perUsd }, _filters, error,
+    ) { subs, tags, (settings, perUsd), filters, hasError ->
         if (subs == null) return@combine ListUiState(loading = !hasError, error = hasError)
         val today = LocalDate.now()
         val tagMap = tags.associateBy { it.id }
         val active = subs.filter { it.status == SubscriptionStatus.ACTIVE }
+        val foreign = active.filter { it.currency != settings.defaultCurrency }
         ListUiState(
             loading = false,
             totalCount = subs.size,
             items = subs.filter { matches(it, filters, tagMap) }.sortedWith(comparator(filters.sort)),
             tags = tagMap,
             currency = settings.defaultCurrency,
-            monthlyTotal = BillingMath.totalMonthly(subs, settings.defaultCurrency),
-            otherCurrencyCount = active.count { it.currency != settings.defaultCurrency },
+            monthlyTotal = BillingMath.totalMonthly(subs, settings.defaultCurrency, perUsd),
+            otherCurrencyCount = foreign.count { BillingMath.monthlyIn(it, settings.defaultCurrency, perUsd) == null },
+            convertedCount = foreign.count { BillingMath.monthlyIn(it, settings.defaultCurrency, perUsd) != null },
             activeCount = active.size,
             dueSoonCount = active.count { BillingMath.daysUntil(it.nextPaymentDate, today) in 0..7 },
             pendingCount = active.count { BillingMath.daysUntil(it.nextPaymentDate, today) < 0 },

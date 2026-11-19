@@ -68,6 +68,7 @@ import com.nhom4.subtrack.data.Tag
 import com.nhom4.subtrack.ui.AppViewModels
 import com.nhom4.subtrack.ui.EmptyState
 import com.nhom4.subtrack.ui.LoadingState
+import com.nhom4.subtrack.ui.RatesBar
 import com.nhom4.subtrack.ui.formatMoney
 import com.nhom4.subtrack.ui.label
 
@@ -79,6 +80,7 @@ val TAG_COLORS = listOf(
 @Composable
 fun OrganizeScreen(vm: OrganizeViewModel = viewModel(factory = AppViewModels.Factory)) {
     val state by vm.state.collectAsStateWithLifecycle()
+    val rates by vm.rates.collectAsStateWithLifecycle()
     var tab by rememberSaveable { mutableIntStateOf(0) }
     var editing by remember { mutableStateOf<Tag?>(null) }
     var creating by remember { mutableStateOf(false) }
@@ -140,6 +142,9 @@ fun OrganizeScreen(vm: OrganizeViewModel = viewModel(factory = AppViewModels.Fac
                 }
                 else -> {
                     item { Hint(stringResource(R.string.categories_hint)) }
+                    item { RatesBar(rates, vm::syncRates) }
+                    if (state.convertedCount > 0) item { Hint(stringResource(R.string.converted_note, state.convertedCount)) }
+                    if (state.excludedCount > 0) item { Hint(stringResource(R.string.other_currency_note, state.excludedCount)) }
                     if (state.categories.isEmpty()) {
                         item { EmptyState(Icons.Outlined.Category, stringResource(R.string.organize_nothing), null) }
                     } else items(state.categories, key = { it.category.key }) { row ->

@@ -102,7 +102,8 @@ class SettingsViewModel(private val app: SubTrackApp) : ViewModel() {
     fun shareReport() {
         val subs = repo.subscriptions.value.orEmpty()
         val currency = settings.value.defaultCurrency
-        val report = ReportsViewModel.build(subs, repo.payments.value, currency, LocalDate.now())
+        val perUsd = app.rates.state.value.perUsd
+        val report = ReportsViewModel.build(subs, repo.payments.value, currency, LocalDate.now(), perUsd)
         if (report.activeCount == 0) {
             msg(R.string.reports_empty)
             return
@@ -111,8 +112,8 @@ class SettingsViewModel(private val app: SubTrackApp) : ViewModel() {
             appendLine(app.getString(R.string.share_report_header, formatDate(LocalDate.now())))
             appendLine(app.getString(R.string.share_report_totals, formatMoney(report.monthly, currency), formatMoney(report.yearly, currency)))
             appendLine(app.getString(R.string.share_report_count, report.activeCount))
-            subs.filter { it.status == SubscriptionStatus.ACTIVE && it.currency == currency }
-                .sortedByDescending { BillingMath.monthlyCost(it.amount, it.cycle) }
+            subs.filter { it.status == SubscriptionStatus.ACTIVE && BillingMath.monthlyIn(it, currency, perUsd) != null }
+                .sortedByDescending { BillingMath.monthlyIn(it, currency, perUsd) }
                 .forEach {
                     appendLine(app.getString(R.string.share_report_line, it.name, formatMoney(it.amount, it.currency), app.getString(it.cycle.label)))
                 }

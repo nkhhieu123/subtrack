@@ -58,7 +58,9 @@ Chạy kiểm thử: `gradlew.bat testDebugUnitTest lintDebug`.
 - **Xác nhận từng kỳ**: app không tự chuyển ngày thanh toán; gói quá hạn hiển thị "Chờ xác nhận" cho đến khi người dùng xác nhận.
 - **Lịch sử chi trả**: mỗi lần đánh dấu đã trả được lưu lại; xóa gói vẫn giữ lịch sử chi tiêu trong Báo cáo.
 - **Tổ chức**: tạo / sửa / xóa tag có màu (chặn trùng tên); thống kê số gói theo nền tảng; chi phí tháng theo danh mục.
-- **Báo cáo**: tổng chi phí mỗi tuần / tháng / quý / năm; mục "Chi thực tế" (tháng này, năm nay, 6 tháng gần nhất, theo danh mục trong 12 tháng) bên cạnh mục "Ước tính"; biểu đồ tròn cơ cấu chi phí (gộp "Các gói khác" khi nhiều hơn 6 gói); chi phí theo danh mục; 3 gói tốn kém nhất; chọn tiền tệ báo cáo (không quy đổi tỷ giá, có ghi chú số gói bị loại).
+- **Báo cáo**: tổng chi phí mỗi tuần / tháng / quý / năm; mục "Chi thực tế" (tháng này, năm nay, 6 tháng gần nhất, theo danh mục trong 12 tháng) bên cạnh mục "Ước tính"; biểu đồ tròn cơ cấu chi phí (gộp "Các gói khác" khi nhiều hơn 6 gói); chi phí theo danh mục; 3 gói tốn kém nhất; chọn tiền tệ báo cáo; gói và khoản chi khác tiền tệ được quy đổi theo tỷ giá.
+- **Tỷ giá**: lần đầu mở app mỗi ngày tự lấy tỷ giá VND/USD/EUR từ ExchangeRate-API (bản miễn phí, không cần key) và lưu lại trên máy; nút "Cập nhật" (có trạng thái đang tải) ở đầu Báo cáo và thẻ Danh mục của Tổ chức. Lấy lỗi (ví dụ không có mạng) thì hiện dòng "Hôm nay chưa cập nhật tỷ giá" ngay tại chỗ và tiếp tục dùng tỷ giá gần nhất. Dùng để quy đổi thẻ tổng chi phí, chi phí theo danh mục và Báo cáo.
+- **Định dạng số tiền thống nhất** theo kiểu Việt Nam cho mọi tiền tệ: dấu chấm tách nghìn, dấu phẩy trước phần lẻ (`1.000.000 ₫`, `1.000.000,50 US$`). Ô nhập số tiền dùng cùng quy tắc; nhập `9.99` cho USD sẽ báo lỗi thay vì đoán.
 - **Nhắc hạn**: WorkManager kiểm tra mỗi ngày và ngay sau khi lưu gói; nhắc một lần khi vào khoảng nhắc, một lần vào đúng ngày đến hạn, và mỗi 3 ngày khi quá hạn; có nhắc lại sau; thông báo có nút "Đã trả" và "Nhắc sau 1 ngày"; xin quyền thông báo trên Android 13+; nút gửi thông báo thử.
 - **Cài đặt**: tiền tệ mặc định, bật/tắt nhắc hạn, xuất CSV (UTF-8, mở được bằng Excel), chia sẻ báo cáo chi phí dạng văn bản, thêm 5 gói mẫu (ghi chú rõ "Gói mẫu để demo"), xóa toàn bộ dữ liệu (có xác nhận), giới thiệu.
 - **Lưu trữ**: SQLite trên máy (bảng `subscriptions`, `tags`, `subscription_tags`, `payments`), truy cập qua Repository; đóng mở app dữ liệu vẫn còn. Nâng cấp dữ liệu từ bản v1 (nhánh main) và v3 (nhánh tuan3) không mất gói/tag; bản v2 không được hỗ trợ.
@@ -68,7 +70,7 @@ Chạy kiểm thử: `gradlew.bat testDebugUnitTest lintDebug`.
 ## Đã kiểm thử
 
 - `assembleDebug`: build thành công.
-- `testDebugUnitTest`: 43/43 test qua, gồm: quy đổi chi phí theo chu kỳ, tổng chi theo tiền tệ, cuộn ngày thanh toán, cuối tháng, mức báo gia hạn, đọc số tiền VND/USD, kiểm tra URL, điều kiện nhắc hạn, nội dung thông báo theo số ngày còn lại, số liệu báo cáo, CSV, định dạng tiền tiếng Việt (BillingMathTest: 25); hành động thanh toán như Đã trả, Bỏ qua, Nhắc lại sau, Hoàn tác, Kích hoạt lại và trạng thái nhắc hạn (PaymentActionsTest: 11); cơ sở dữ liệu SQLite, lịch sử chi trả và nâng cấp schema từ v1/v3 lên v4 (SubTrackDatabaseTest: 7). Unit test đã phát hiện và giúp sửa một lỗi đọc số tiền (`1.2.3.4` từng được chấp nhận).
+- `testDebugUnitTest`: 49/49 test qua, gồm: quy đổi chi phí theo chu kỳ, tổng chi theo tiền tệ, cuộn ngày thanh toán, cuối tháng, mức báo gia hạn, đọc số tiền VND/USD, kiểm tra URL, điều kiện nhắc hạn, nội dung thông báo theo số ngày còn lại, số liệu báo cáo, CSV, định dạng và đọc số tiền theo một quy tắc, quy đổi tiền tệ (BillingMathTest: 27); hành động thanh toán như Đã trả, Bỏ qua, Nhắc lại sau, Hoàn tác, Kích hoạt lại và trạng thái nhắc hạn (PaymentActionsTest: 11); cơ sở dữ liệu SQLite, lịch sử chi trả và nâng cấp schema từ v1/v3 lên v4 (SubTrackDatabaseTest: 7); đọc phản hồi API tỷ giá, lưu và dùng lại khi mất mạng, chặn bấm cập nhật liên tục (RatesRepositoryTest: 4). Unit test đã phát hiện và giúp sửa một lỗi đọc số tiền (`1.2.3.4` từng được chấp nhận).
 - `lintDebug`: không còn lỗi.
 - **Chạy thử trên máy ảo** (AVD API 36.1): nâng cấp CSDL giữ nguyên gói cũ; màn hình xem gói; Đã trả (ghi lịch sử, chuyển kỳ, snackbar Hoàn tác); hoàn tác bằng nút ↶ trong lịch sử; mục "Chi thực tế" trong Báo cáo; thông báo nhắc hạn có nút "Đã trả" (bấm xong thông báo biến mất, gói chuyển kỳ); chạm vào thông báo mở đúng màn hình của gói; kiểm tra lại trong cùng ngày không nhắc trùng. Không có lỗi crash trong logcat.
 
@@ -77,7 +79,7 @@ Chạy kiểm thử: `gradlew.bat testDebugUnitTest lintDebug`.
 - **Chưa chạy thử trên máy thật**, và trên máy ảo chưa thử: thông báo khi gói đã quá hạn, nút "Nhắc sau 1 ngày", "Bỏ qua kỳ này", xóa gói đã có lịch sử chi trả (đã có unit test cho trường hợp này).
 - **Lịch sử chi trả** chỉ có từ khi người dùng bấm "Đã trả"; các kỳ trước khi cài bản này và các kỳ không được xác nhận không có trong "Chi thực tế". Lần đầu chạy sau khi nâng cấp, gói đang trong khoảng nhắc có thể được nhắc thêm một lần.
 - **Không đồng bộ đám mây / không có tài khoản**: Sub Radar dùng iCloud. Kế hoạch nhóm xếp đăng nhập vào phần mở rộng; muốn làm thì cần một dự án Firebase (file `google-services.json`, bật Authentication và Firestore).
-- **Không quy đổi tỷ giá**: báo cáo chỉ cộng các gói cùng một tiền tệ, vì quy đổi cần API tỷ giá bên ngoài.
+- **Tỷ giá**: chưa chạy thử trên máy ảo/máy thật (mới kiểm thử ở tầng code). Chi thực tế của các kỳ cũ được quy đổi theo tỷ giá hiện tại vì API miễn phí không có tỷ giá lịch sử. Khi chưa từng lấy được tỷ giá, app chỉ cộng các gói cùng tiền tệ và ghi chú số gói bị loại.
 - **Nền tảng cố định**: có 12 nền tảng có sẵn, chưa cho tự tạo nền tảng như Sub Radar.
 - **Xuất dữ liệu** chỉ hỗ trợ CSV (Sub Radar có thêm JSON và văn bản thuần), chưa kèm lịch sử chi trả; chưa có nhập lại dữ liệu từ file.
 - **Thông báo hằng ngày** chạy theo lịch của WorkManager nên giờ nhắc không cố định chính xác.
@@ -85,4 +87,5 @@ Chạy kiểm thử: `gradlew.bat testDebugUnitTest lintDebug`.
 ## API, biến môi trường, quyền
 
 - Không cần API key, backend hay biến môi trường nào. Không có khóa bí mật trong mã nguồn.
-- Quyền Android: `POST_NOTIFICATIONS` (Android 13+, xin khi bật nhắc hạn). Thêm vào Lịch và mở liên kết dùng Intent của hệ thống, không cần quyền riêng.
+- Tỷ giá: `GET https://open.er-api.com/v6/latest/USD` (ExchangeRate-API, bản open access). Điều kiện sử dụng yêu cầu ghi nguồn, nên app hiện dòng "Rates By Exchange Rate API" dưới nút Cập nhật.
+- Quyền Android: `POST_NOTIFICATIONS` (Android 13+, xin khi bật nhắc hạn), `INTERNET` (lấy tỷ giá). Thêm vào Lịch và mở liên kết dùng Intent của hệ thống, không cần quyền riêng.

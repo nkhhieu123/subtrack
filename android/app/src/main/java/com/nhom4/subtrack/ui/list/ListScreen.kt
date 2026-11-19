@@ -197,6 +197,13 @@ private fun SummaryCard(state: ListUiState) {
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.onPrimary,
             )
+            if (state.convertedCount > 0) {
+                Text(
+                    stringResource(R.string.converted_note, state.convertedCount),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.85f),
+                )
+            }
             if (state.otherCurrencyCount > 0) {
                 Text(
                     stringResource(R.string.other_currency_note, state.otherCurrencyCount),
