@@ -41,7 +41,8 @@ class SubTrackDatabase(context: Context, name: String = DB_NAME) :
      * - Version 1: nền tảng dạng chuỗi, tên tag phân biệt hoa/thường, chưa có CHECK số tiền.
      * - Version 2: nền tảng tách ra bảng subscription_platforms.
      * - Version 3: nền tảng quay lại dạng chuỗi; giữ tag không phân biệt hoa/thường và CHECK.
-     * - Version 4 (hiện tại): thêm trạng thái nhắc hạn và bảng payments.
+     * - Version 4: thêm trạng thái nhắc hạn và bảng payments.
+     * - Version 5 (hiện tại): thêm billing_day (ngày gốc của gói) để kỳ sau không trôi về 28.
      */
     override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
         if (oldVersion < 3) {
@@ -52,6 +53,8 @@ class SubTrackDatabase(context: Context, name: String = DB_NAME) :
             db.execSQL("ALTER TABLE subscriptions ADD COLUMN snoozed_until INTEGER")
             db.execSQL("ALTER TABLE subscriptions ADD COLUMN last_notified_on INTEGER")
         }
+        // v5: ngày gốc của gói; bảng dựng lại ở nhánh < 3 đã có cột này
+        if (oldVersion in 3..4) db.execSQL("ALTER TABLE subscriptions ADD COLUMN billing_day INTEGER")
         if (oldVersion < 4) createPayments(db)
     }
 
@@ -91,6 +94,7 @@ class SubTrackDatabase(context: Context, name: String = DB_NAME) :
                 put("currency", sub.currency.name)
                 put("billing_cycle", sub.cycle.name)
                 put("next_payment_date", sub.nextPaymentDate.toEpochDay())
+                put("billing_day", sub.billingDay ?: sub.nextPaymentDate.dayOfMonth)
                 put("category", sub.category.key)
                 put("status", sub.status.name)
                 if (sub.remindDaysBefore == null) putNull("remind_days_before") else put("remind_days_before", sub.remindDaysBefore)
@@ -137,12 +141,14 @@ class SubTrackDatabase(context: Context, name: String = DB_NAME) :
         )
     }
 
-    fun setStatusAndDate(id: Long, status: SubscriptionStatus, next: LocalDate) {
+    /** [billingDay] khác null khi người dùng chọn ngày mới (kích hoạt lại): đổi luôn ngày gốc. */
+    fun setStatusAndDate(id: Long, status: SubscriptionStatus, next: LocalDate, billingDay: Int? = null) {
         writableDatabase.update(
             "subscriptions",
             ContentValues().apply {
                 put("status", status.name)
                 put("next_payment_date", next.toEpochDay())
+                if (billingDay != null) put("billing_day", billingDay)
             },
             "id = ?", arrayOf(id.toString()),
         )
@@ -292,6 +298,7 @@ class SubTrackDatabase(context: Context, name: String = DB_NAME) :
             updatedAt = getLong(getColumnIndexOrThrow("updated_at")),
             snoozedUntil = getColumnIndexOrThrow("snoozed_until").let { if (isNull(it)) null else LocalDate.ofEpochDay(getLong(it)) },
             lastNotifiedOn = getColumnIndexOrThrow("last_notified_on").let { if (isNull(it)) null else LocalDate.ofEpochDay(getLong(it)) },
+            billingDay = getColumnIndexOrThrow("billing_day").let { if (isNull(it)) null else getInt(it) },
         )
     }
 
@@ -351,7 +358,7 @@ class SubTrackDatabase(context: Context, name: String = DB_NAME) :
 
     companion object {
         const val DB_NAME = "subtrack.db"
-        const val DB_VERSION = 4
+        const val DB_VERSION = 5
 
         /** Các cột chung của mọi version (trừ platforms). */
         private const val BASE_COLUMNS =
@@ -386,7 +393,8 @@ class SubTrackDatabase(context: Context, name: String = DB_NAME) :
                     created_at INTEGER NOT NULL,
                     updated_at INTEGER NOT NULL,
                     snoozed_until INTEGER,
-                    last_notified_on INTEGER
+                    last_notified_on INTEGER,
+                    billing_day INTEGER
                 )
                 """.trimIndent()
             )

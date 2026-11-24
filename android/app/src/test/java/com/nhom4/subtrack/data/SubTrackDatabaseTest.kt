@@ -49,13 +49,40 @@ class SubTrackDatabaseTest {
         }
 
     @Test
-    fun freshInstall_hasV4Schema() {
+    fun freshInstall_hasV5Schema() {
         val helper = SubTrackDatabase(context)
         val db = helper.writableDatabase
-        assertEquals(4, userVersion(db))
+        assertEquals(5, userVersion(db))
         assertTrue(columns(db, "payments").isNotEmpty())
         val cols = columns(db, "subscriptions")
-        assertTrue("snoozed_until" in cols && "last_notified_on" in cols)
+        assertTrue("snoozed_until" in cols && "last_notified_on" in cols && "billing_day" in cols)
+        helper.close()
+    }
+
+    /** v4 → v5 chỉ thêm cột billing_day; gói cũ lấy ngày gốc theo ngày thanh toán tiếp theo. */
+    @Test
+    fun upgradeFromV4_addsBillingDay() {
+        val old = SQLiteDatabase.openOrCreateDatabase(context.getDatabasePath(SubTrackDatabase.DB_NAME), null)
+        old.execSQL(subsV1.replace("updated_at INTEGER NOT NULL)", "updated_at INTEGER NOT NULL, snoozed_until INTEGER, last_notified_on INTEGER)"))
+        old.execSQL("CREATE TABLE tags (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL COLLATE NOCASE UNIQUE, color INTEGER NOT NULL)")
+        old.execSQL("CREATE TABLE subscription_tags (subscription_id INTEGER NOT NULL, tag_id INTEGER NOT NULL, PRIMARY KEY (subscription_id, tag_id))")
+        old.execSQL(
+            "CREATE TABLE payments (id INTEGER PRIMARY KEY AUTOINCREMENT, subscription_id INTEGER, subscription_name TEXT NOT NULL, " +
+                "category TEXT NOT NULL, period_date INTEGER NOT NULL, kind TEXT NOT NULL, paid_date INTEGER, amount REAL, currency TEXT, " +
+                "created_at INTEGER NOT NULL, UNIQUE (subscription_id, period_date))"
+        )
+        old.execSQL(
+            "INSERT INTO subscriptions (id,name,amount,currency,billing_cycle,next_payment_date,category,status,created_at,updated_at) " +
+                "VALUES (7,'Netflix',260000,'VND','MONTHLY',${d1.toEpochDay()},'entertainment','ACTIVE',1,1)"
+        )
+        old.execSQL("PRAGMA user_version = 4")
+        old.close()
+
+        val helper = SubTrackDatabase(context)
+        val s = helper.getSubscriptions().single()
+        assertEquals("Netflix", s.name)
+        assertEquals(null, s.billingDay)
+        assertEquals(5, userVersion(helper.readableDatabase))
         helper.close()
     }
 

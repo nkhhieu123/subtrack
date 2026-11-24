@@ -69,6 +69,8 @@ class EditViewModel(private val app: SubTrackApp, private val id: Long) : ViewMo
         private set
     /** Đã bấm Lưu ít nhất một lần → hiện lỗi ngay khi gõ. */
     private var attempted = false
+    /** Gói đang sửa lúc mở form: giữ ngày gốc khi người dùng không đổi ngày thanh toán. */
+    private var loaded: Subscription? = null
 
     val tags: StateFlow<List<Tag>> = repo.tags
     val remindersEnabled get() = app.settings.settings.value.remindersEnabled
@@ -81,7 +83,7 @@ class EditViewModel(private val app: SubTrackApp, private val id: Long) : ViewMo
             if (repo.subscriptions.value == null) runCatching { repo.refresh() }
             if (!isNew) {
                 val sub = runCatching { repo.getSubscription(id) }.getOrNull()
-                if (sub == null) notFound = true else form = sub.toForm()
+                if (sub == null) notFound = true else { loaded = sub; form = sub.toForm() }
                 loading = false
             }
         }
@@ -128,6 +130,8 @@ class EditViewModel(private val app: SubTrackApp, private val id: Long) : ViewMo
                         currency = f.currency,
                         cycle = f.cycle,
                         nextPaymentDate = f.nextPaymentDate,
+                        // Đổi ngày thì ngày gốc theo ngày mới (null = lấy ngày của nextPaymentDate)
+                        billingDay = loaded?.takeIf { it.nextPaymentDate == f.nextPaymentDate }?.billingDay,
                         category = f.category,
                         status = f.status,
                         remindDaysBefore = f.remindDaysBefore,
@@ -164,13 +168,14 @@ class EditViewModel(private val app: SubTrackApp, private val id: Long) : ViewMo
         val name = f.name.trim()
         val nameErr = when {
             name.isEmpty() -> R.string.err_name_required
-            name.length > 60 -> R.string.err_name_too_long
+            name.length > BillingMath.MAX_NAME_LENGTH -> R.string.err_name_too_long
             else -> null
         }
         val amount = BillingMath.parseAmount(f.amount, f.currency)
         val amountErr = when {
             f.amount.isBlank() -> R.string.err_amount_required
             amount == null -> R.string.err_amount_invalid
+            amount <= 0 -> R.string.err_amount_zero
             else -> null
         }
         val urlErr = if (f.url.isNotBlank() && !BillingMath.isValidUrl(f.url)) R.string.err_url_invalid else null

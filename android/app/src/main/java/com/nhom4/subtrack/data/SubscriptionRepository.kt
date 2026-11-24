@@ -108,7 +108,7 @@ class SubscriptionRepository(db: SubTrackDatabase) {
                         kind = kind, paidDate = paidDate, amount = amount, currency = if (amount != null) sub.currency else null,
                     )
                 )
-                db.updateNextPaymentDate(id, BillingMath.advance(period, sub.cycle))
+                db.updateNextPaymentDate(id, BillingMath.advance(period, sub.cycle, BillingMath.billingDayOf(sub)))
                 db.setReminderState(id, null, null)
                 token(sub, pid)
             }
@@ -140,7 +140,7 @@ class SubscriptionRepository(db: SubTrackDatabase) {
     suspend fun reactivate(id: Long, next: LocalDate): UndoToken? = withContext(Dispatchers.IO) {
         val sub = db.getSubscriptions().firstOrNull { it.id == id } ?: return@withContext null
         db.inTransaction {
-            db.setStatusAndDate(id, SubscriptionStatus.ACTIVE, next)
+            db.setStatusAndDate(id, SubscriptionStatus.ACTIVE, next, next.dayOfMonth)
             db.setReminderState(id, null, null)
         }
         token(sub).also { refresh() }

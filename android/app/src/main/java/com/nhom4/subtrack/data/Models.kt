@@ -61,6 +61,8 @@ data class Subscription(
     val snoozedUntil: LocalDate? = null,
     /** Ngày gửi thông báo gần nhất cho kỳ hiện tại; null = chưa nhắc. */
     val lastNotifiedOn: LocalDate? = null,
+    /** Ngày gốc trong tháng để tính kỳ sau (vd 31); null = lấy ngày của [nextPaymentDate]. */
+    val billingDay: Int? = null,
 )
 
 enum class PaymentKind { PAID, SKIPPED }

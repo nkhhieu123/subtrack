@@ -113,6 +113,19 @@ class DatasetCsvTest {
         assertThrows(IllegalArgumentException::class.java) { csv.read("xin chào\n") }
     }
 
+    /** BUG-05: CSV phải theo cùng quy tắc như form (tên ≤ 60 ký tự, liên kết http(s), số tiền > 0). */
+    @Test
+    fun rowsBreakingFormRules_skipped() {
+        val text = "Tên dịch vụ,Số tiền,Tiền tệ,Chu kỳ,Ngày thanh toán tiếp theo,Liên kết quản lý\n" +
+            "${"A".repeat(61)},1000,VND,MONTHLY,2026-12-01,\n" +
+            "Sai liên kết,1000,VND,MONTHLY,2026-12-01,abc\n" +
+            "Không đồng,0,VND,MONTHLY,2026-12-01,\n" +
+            "${"B".repeat(60)},1000,VND,MONTHLY,2026-12-01,https://ok.example.com\n"
+        val parsed = csv.read(text)
+        assertEquals(listOf("B".repeat(60)), parsed.data.subscriptions.map { it.name })
+        assertEquals(3, parsed.skipped)
+    }
+
     @Test
     fun parseRows_quotesAndNewlines() {
         val rows = DatasetCsv.parseRows("a,\"b,\"\"c\"\"\",\"x\r\ny\"\r\n,\n")

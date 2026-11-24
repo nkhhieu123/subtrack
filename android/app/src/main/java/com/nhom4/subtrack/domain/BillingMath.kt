@@ -36,12 +36,25 @@ object BillingMath {
         subs.filter { it.status == SubscriptionStatus.ACTIVE }
             .sumOf { monthlyIn(it, currency, perUsd) ?: 0.0 }
 
-    fun advance(date: LocalDate, cycle: BillingCycle): LocalDate = when (cycle) {
-        BillingCycle.WEEKLY -> date.plusWeeks(1)
-        BillingCycle.MONTHLY -> date.plusMonths(1)
-        BillingCycle.QUARTERLY -> date.plusMonths(3)
-        BillingCycle.YEARLY -> date.plusYears(1)
+    /**
+     * Kỳ sau của [date]. [billingDay] = ngày gốc của gói (vd 31): sau tháng ngắn vẫn quay lại ngày đó
+     * thay vì trôi vĩnh viễn về 28.
+     */
+    fun advance(date: LocalDate, cycle: BillingCycle, billingDay: Int = date.dayOfMonth): LocalDate {
+        val next = when (cycle) {
+            BillingCycle.WEEKLY -> return date.plusWeeks(1)
+            BillingCycle.MONTHLY -> date.plusMonths(1)
+            BillingCycle.QUARTERLY -> date.plusMonths(3)
+            BillingCycle.YEARLY -> date.plusYears(1)
+        }
+        return next.withDayOfMonth(minOf(maxOf(billingDay, next.dayOfMonth), next.lengthOfMonth()))
     }
+
+    /** Ngày gốc dùng để tính kỳ sau. */
+    fun billingDayOf(sub: Subscription) = sub.billingDay ?: sub.nextPaymentDate.dayOfMonth
+
+    /** Tên gói tối đa (form và nhập CSV dùng chung). */
+    const val MAX_NAME_LENGTH = 60
 
     /** Ngày thanh toán đầu tiên không trước [today], tính từ [date] theo chu kỳ. */
     fun nextOnOrAfter(date: LocalDate, cycle: BillingCycle, today: LocalDate): LocalDate {
