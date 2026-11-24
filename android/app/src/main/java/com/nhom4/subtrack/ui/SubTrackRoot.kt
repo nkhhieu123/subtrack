@@ -30,7 +30,10 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.nhom4.subtrack.R
+import com.nhom4.subtrack.ui.dataset.DatasetsScreen
 import com.nhom4.subtrack.ui.detail.DetailScreen
+import com.nhom4.subtrack.ui.qr.QrExportScreen
+import com.nhom4.subtrack.ui.qr.QrScanScreen
 import com.nhom4.subtrack.ui.edit.EditScreen
 import com.nhom4.subtrack.ui.list.ListScreen
 import com.nhom4.subtrack.ui.organize.OrganizeScreen
@@ -48,6 +51,9 @@ private const val EDIT_ROUTE = "edit/{id}"
 private fun editRoute(id: Long) = "edit/$id"
 private const val DETAIL_ROUTE = "detail/{id}"
 private fun detailRoute(id: Long) = "detail/$id"
+private const val DATASETS_ROUTE = "datasets"
+private const val QR_EXPORT_ROUTE = "qr/export"
+private const val QR_SCAN_ROUTE = "qr/scan"
 
 @Composable
 fun SubTrackRoot(openSubscriptionId: Long? = null, onOpenedSubscription: () -> Unit = {}) {
@@ -101,7 +107,16 @@ fun SubTrackRoot(openSubscriptionId: Long? = null, onOpenedSubscription: () -> U
             }
             composable(Tab.ORGANIZE.route) { OrganizeScreen() }
             composable(Tab.REPORTS.route) { ReportsScreen() }
-            composable(Tab.SETTINGS.route) { SettingsScreen() }
+            composable(Tab.SETTINGS.route) {
+                SettingsScreen(
+                    onOpenDatasets = { nav.navigate(DATASETS_ROUTE) { launchSingleTop = true } },
+                    onExportQr = { nav.navigate(QR_EXPORT_ROUTE) { launchSingleTop = true } },
+                    onScanQr = { nav.navigate(QR_SCAN_ROUTE) { launchSingleTop = true } },
+                )
+            }
+            composable(DATASETS_ROUTE) { DatasetsScreen(onBack = { nav.popBackStack() }) }
+            composable(QR_EXPORT_ROUTE) { QrExportScreen(onBack = { nav.popBackStack() }) }
+            composable(QR_SCAN_ROUTE) { QrScanScreen(onDone = { nav.popBackStack() }) }
             composable(DETAIL_ROUTE, arguments = listOf(navArgument("id") { type = NavType.LongType })) { entry ->
                 val id = entry.arguments?.getLong("id") ?: 0L
                 DetailScreen(id, onBack = { nav.popBackStack() }, onEdit = { nav.navigate(editRoute(id)) })

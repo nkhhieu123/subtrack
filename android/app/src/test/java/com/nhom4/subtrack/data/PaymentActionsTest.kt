@@ -165,5 +165,17 @@ class PaymentActionsTest {
         assertEquals(past, get(id).nextPaymentDate)
     }
 
+    /** BUG-03: trả hai kỳ liên tiếp của gói ngày 31 phải về lại ngày 31. */
+    @Test
+    fun markPaid_monthEnd_keepsBillingDay() = runBlocking {
+        val jan31 = LocalDate.of(2027, 1, 31)
+        val feb28 = LocalDate.of(2027, 2, 28)
+        val id = add(sub(next = jan31))
+        repo.markPaid(id, jan31)
+        assertEquals(feb28, get(id).nextPaymentDate)
+        repo.markPaid(id, feb28)
+        assertEquals(LocalDate.of(2027, 3, 31), get(id).nextPaymentDate)
+    }
+
     private fun SubscriptionRepository.setReminderForTest(id: Long) = db.setReminderState(id, nov20, nov20)
 }

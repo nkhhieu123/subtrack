@@ -74,15 +74,10 @@ data class Subscription(
     val snoozedUntil: LocalDate? = null,
     /** Ngày gửi thông báo gần nhất cho kỳ hiện tại; null = chưa nhắc. */
     val lastNotifiedOn: LocalDate? = null,
-    /**
-     * Ngày neo gốc trong tháng (1–31) của chu kỳ tháng/quý/năm, ví dụ 31 cho gói bắt đầu 31/01.
-     * Giữ để kỳ sau quay lại đúng ngày: 31/01 → 28/02 → 31/03, không trôi thành 28/03.
-     * null (dữ liệu cũ) = lấy ngày của [nextPaymentDate].
-     */
-    val billingAnchorDay: Int? = null,
+    /** Ngày gốc trong tháng để tính kỳ sau (vd 31); null = lấy ngày của [nextPaymentDate]. */
+    val billingDay: Int? = null,
 ) {
     val categoryKey: CategoryKey get() = CategoryKey.of(category, customCategory)
-    val anchorDay: Int get() = billingAnchorDay ?: nextPaymentDate.dayOfMonth
 }
 
 enum class PaymentKind { PAID, SKIPPED }

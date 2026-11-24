@@ -50,6 +50,12 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    override fun onStart() {
+        super.onStart()
+        // Lần đầu mở app mỗi ngày: lấy tỷ giá (bỏ qua nếu hôm nay đã có).
+        (application as SubTrackApp).rates.syncIfStale()
+    }
+
     companion object {
         const val EXTRA_OPEN_SUBSCRIPTION = "open_subscription_id"
     }

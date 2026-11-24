@@ -9,6 +9,7 @@ import com.nhom4.subtrack.data.Subscription
 import com.nhom4.subtrack.data.SubscriptionStatus
 import com.nhom4.subtrack.data.Tag
 import com.nhom4.subtrack.domain.BillingMath
+import com.nhom4.subtrack.domain.TextSearch
 import com.nhom4.subtrack.ui.categoryName
 import com.nhom4.subtrack.ui.label
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -38,33 +39,39 @@ data class ListUiState(
     val tags: Map<Long, Tag> = emptyMap(),
     val currency: Currency = Currency.VND,
     val monthlyTotal: Double = 0.0,
+    /** Gói khác tiền tệ chưa quy đổi được (chưa có tỷ giá). */
     val otherCurrencyCount: Int = 0,
+    /** Gói khác tiền tệ đã quy đổi vào [monthlyTotal]. */
+    val convertedCount: Int = 0,
     val activeCount: Int = 0,
     val dueSoonCount: Int = 0,
     val pendingCount: Int = 0,
 )
 
 class ListViewModel(private val app: SubTrackApp) : ViewModel() {
+    val datasets = app.datasets.state
     private val repo = app.repository
     private val _filters = MutableStateFlow(ListFilters())
     val filters: StateFlow<ListFilters> = _filters
     private val error = MutableStateFlow(false)
 
     val state: StateFlow<ListUiState> = combine(
-        repo.subscriptions, repo.tags, app.settings.settings, _filters, error,
-    ) { subs, tags, settings, filters, hasError ->
+        repo.subscriptions, repo.tags, app.settings.settings.combine(app.rates.state) { s, r -> s to r.perUsd }, _filters, error,
+    ) { subs, tags, (settings, perUsd), filters, hasError ->
         if (subs == null) return@combine ListUiState(loading = !hasError, error = hasError)
         val today = LocalDate.now()
         val tagMap = tags.associateBy { it.id }
         val active = subs.filter { it.status == SubscriptionStatus.ACTIVE }
+        val foreign = active.filter { it.currency != settings.defaultCurrency }
         ListUiState(
             loading = false,
             totalCount = subs.size,
-            items = subs.filter { matches(it, filters, tagMap) }.sortedWith(comparator(filters.sort)),
+            items = subs.filter { matches(it, filters, tagMap) }.sortedWith(comparator(filters.sort, settings.defaultCurrency, perUsd)),
             tags = tagMap,
             currency = settings.defaultCurrency,
-            monthlyTotal = BillingMath.totalMonthly(subs, settings.defaultCurrency),
-            otherCurrencyCount = active.count { it.currency != settings.defaultCurrency },
+            monthlyTotal = BillingMath.totalMonthly(subs, settings.defaultCurrency, perUsd),
+            otherCurrencyCount = foreign.count { BillingMath.monthlyIn(it, settings.defaultCurrency, perUsd) == null },
+            convertedCount = foreign.count { BillingMath.monthlyIn(it, settings.defaultCurrency, perUsd) != null },
             activeCount = active.size,
             dueSoonCount = active.count { BillingMath.daysUntil(it.nextPaymentDate, today) in 0..7 },
             pendingCount = active.count { BillingMath.daysUntil(it.nextPaymentDate, today) < 0 },
@@ -103,12 +110,15 @@ class ListViewModel(private val app: SubTrackApp) : ViewModel() {
             sub.platforms.mapTo(this) { app.getString(it.label) }
             add(app.categoryName(sub.categoryKey))
         }
-        return haystack.any { it.contains(q, ignoreCase = true) }
+        return haystack.any { TextSearch.matches(it, q) }
     }
 
-    private fun comparator(sort: SortOrder): Comparator<Subscription> = when (sort) {
-        SortOrder.DATE -> compareBy<Subscription> { it.status != SubscriptionStatus.ACTIVE }.thenBy { it.nextPaymentDate }
-        SortOrder.PRICE -> compareByDescending<Subscription> { BillingMath.monthlyCost(it.amount, it.cycle) }
-        SortOrder.NAME -> compareBy(String.CASE_INSENSITIVE_ORDER) { it.name }
+    companion object {
+        /** Sắp theo chi phí tháng đã quy về [currency]; gói chưa quy đổi được (thiếu tỷ giá) xếp cuối. */
+        fun comparator(sort: SortOrder, currency: Currency, perUsd: Map<Currency, Double>?): Comparator<Subscription> = when (sort) {
+            SortOrder.DATE -> compareBy<Subscription> { it.status != SubscriptionStatus.ACTIVE }.thenBy { it.nextPaymentDate }
+            SortOrder.PRICE -> compareByDescending<Subscription> { BillingMath.monthlyIn(it, currency, perUsd) ?: -1.0 }
+            SortOrder.NAME -> compareBy(String.CASE_INSENSITIVE_ORDER) { it.name }
+        }
     }
 }

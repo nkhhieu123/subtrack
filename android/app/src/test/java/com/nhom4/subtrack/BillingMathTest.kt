@@ -7,6 +7,7 @@ import com.nhom4.subtrack.data.Currency
 import com.nhom4.subtrack.data.Subscription
 import com.nhom4.subtrack.data.SubscriptionStatus
 import com.nhom4.subtrack.domain.BillingMath
+import com.nhom4.subtrack.domain.CurrencyConverter
 import com.nhom4.subtrack.domain.CsvWriter
 import com.nhom4.subtrack.domain.RenewalLevel
 import com.nhom4.subtrack.domain.SpendMath
@@ -16,6 +17,7 @@ import com.nhom4.subtrack.reminder.Reminders
 import com.nhom4.subtrack.data.Payment
 import com.nhom4.subtrack.data.PaymentKind
 import com.nhom4.subtrack.ui.detail.DetailViewModel
+import com.nhom4.subtrack.ui.formatAmountInput
 import com.nhom4.subtrack.ui.formatMoney
 import com.nhom4.subtrack.ui.reports.ReportsViewModel
 import org.junit.Assert.assertEquals
@@ -73,6 +75,33 @@ class BillingMathTest {
         assertEquals(LocalDate.of(2026, 2, 28), BillingMath.advance(LocalDate.of(2026, 1, 31), BillingCycle.MONTHLY))
     }
 
+    /** BUG-03: gói ngày 31 không được trôi vĩnh viễn về 28 sau tháng 2. */
+    @Test
+    fun advance_keepsBillingDay() {
+        val feb = BillingMath.advance(LocalDate.of(2027, 1, 31), BillingCycle.MONTHLY, 31)
+        assertEquals(LocalDate.of(2027, 2, 28), feb)
+        assertEquals(LocalDate.of(2027, 3, 31), BillingMath.advance(feb, BillingCycle.MONTHLY, 31))
+        assertEquals(LocalDate.of(2027, 5, 31), BillingMath.advance(feb, BillingCycle.QUARTERLY, 31))
+        assertEquals(LocalDate.of(2028, 2, 29), BillingMath.advance(LocalDate.of(2027, 2, 28), BillingCycle.YEARLY, 29))
+        assertEquals(LocalDate.of(2027, 3, 7), BillingMath.advance(feb, BillingCycle.WEEKLY, 31))
+    }
+
+    /** BUG-01: sắp theo chi phí tháng phải quy đổi tiền tệ trước khi so. */
+    @Test
+    fun priceSort_convertsCurrency() {
+        fun s(name: String, amount: Double, c: Currency) = Subscription(name = name, amount = amount, currency = c,
+            cycle = BillingCycle.MONTHLY, nextPaymentDate = today, category = Category.OTHER)
+        val rates = mapOf(Currency.USD to 1.0, Currency.VND to 25_000.0)
+        val subs = listOf(s("VND", 59_000.0, Currency.VND), s("USD", 10.0, Currency.USD), s("Không tỷ giá", 5.0, Currency.EUR))
+        val sorted = subs.sortedWith(com.nhom4.subtrack.ui.list.ListViewModel.comparator(
+            com.nhom4.subtrack.ui.list.SortOrder.PRICE, Currency.VND, rates))
+        assertEquals(listOf("USD", "VND", "Không tỷ giá"), sorted.map { it.name })
+        // Chưa có tỷ giá: gói khác tiền tệ xếp cuối, không làm hỏng thứ tự
+        val noRates = subs.sortedWith(com.nhom4.subtrack.ui.list.ListViewModel.comparator(
+            com.nhom4.subtrack.ui.list.SortOrder.PRICE, Currency.VND, null))
+        assertEquals("VND", noRates.first().name)
+    }
+
     @Test
     fun renewalLevel_matchesIndicatorRules() {
         assertEquals(RenewalLevel.SOON, BillingMath.renewalLevel(today.plusDays(7), today))
@@ -85,7 +114,9 @@ class BillingMathTest {
     fun parseAmount_vnd() {
         assertEquals(260_000.0, BillingMath.parseAmount("260000", Currency.VND)!!, 0.0)
         assertEquals(260_000.0, BillingMath.parseAmount("260.000", Currency.VND)!!, 0.0)
-        assertEquals(1_190_000.0, BillingMath.parseAmount("1,190,000", Currency.VND)!!, 0.0)
+        assertEquals(1_190_000.0, BillingMath.parseAmount("1.190.000", Currency.VND)!!, 0.0)
+        assertNull(BillingMath.parseAmount("1,190,000", Currency.VND)) // dấu phẩy là phần lẻ, VND không có
+        assertNull(BillingMath.parseAmount("260000,5", Currency.VND))
         assertEquals(0.0, BillingMath.parseAmount("0", Currency.VND)!!, 0.0)
         assertNull(BillingMath.parseAmount("-5000", Currency.VND))
         assertNull(BillingMath.parseAmount("abc", Currency.VND))
@@ -94,11 +125,17 @@ class BillingMathTest {
 
     @Test
     fun parseAmount_usd() {
-        assertEquals(9.99, BillingMath.parseAmount("9.99", Currency.USD)!!, 0.0)
         assertEquals(9.99, BillingMath.parseAmount("9,99", Currency.USD)!!, 0.0)
-        assertEquals(1234.5, BillingMath.parseAmount("1,234.5", Currency.USD)!!, 0.0)
+        assertEquals(1_000_000.5, BillingMath.parseAmount("1.000.000,50", Currency.USD)!!, 0.0)
+        assertEquals(1234.5, BillingMath.parseAmount("1234,5", Currency.EUR)!!, 0.0)
+        assertEquals(1234.0, BillingMath.parseAmount("1.234", Currency.USD)!!, 0.0)
         assertEquals(12.0, BillingMath.parseAmount("12", Currency.USD)!!, 0.0)
+        // Kiểu Mỹ bị từ chối, không đoán
+        assertNull(BillingMath.parseAmount("9.99", Currency.USD))
+        assertNull(BillingMath.parseAmount("1,234.5", Currency.USD))
         assertNull(BillingMath.parseAmount("1.2.3.4", Currency.USD))
+        assertNull(BillingMath.parseAmount("1234.567", Currency.USD))
+        assertNull(BillingMath.parseAmount("9,999", Currency.USD))
     }
 
     @Test
@@ -230,8 +267,14 @@ class BillingMathTest {
     fun money_isFormattedVietnamese() {
         val vnd = formatMoney(260_000.0, Currency.VND)
         assertTrue(vnd, vnd.contains("260.000") && vnd.contains("₫"))
-        val usd = formatMoney(9.99, Currency.USD)
-        assertTrue(usd, usd.contains("9,99"))
+        val usd = formatMoney(1_000_000.5, Currency.USD)
+        assertTrue(usd, usd.contains("1.000.000,50"))
+        val eur = formatMoney(1234.5, Currency.EUR)
+        assertTrue(eur, eur.contains("1.234,50"))
+        // Ô nhập dùng cùng quy ước và đọc lại được
+        assertEquals("9,99", formatAmountInput(9.99, Currency.USD))
+        assertEquals("260000", formatAmountInput(260_000.0, Currency.VND))
+        assertEquals(1234.5, BillingMath.parseAmount(formatAmountInput(1234.5, Currency.EUR), Currency.EUR)!!, 0.0)
     }
 
     private fun pay(kind: PaymentKind, amount: Double?, cur: Currency?) = Payment(
@@ -266,5 +309,33 @@ class BillingMathTest {
         assertTrue(DetailViewModel.inReminderWindow(s(3), today))
         assertTrue(DetailViewModel.inReminderWindow(s(-2), today))
         assertFalse(DetailViewModel.inReminderWindow(s(3, SubscriptionStatus.PAUSED), today))
+    }
+
+    private val rates = mapOf(Currency.USD to 1.0, Currency.VND to 25_000.0, Currency.EUR to 0.8)
+
+    @Test
+    fun convert_viaUsd() {
+        assertEquals(250_000.0, CurrencyConverter.convert(10.0, Currency.USD, Currency.VND, rates)!!, 0.001)
+        assertEquals(10.0, CurrencyConverter.convert(8.0, Currency.EUR, Currency.USD, rates)!!, 0.001)
+        assertEquals(312_500.0, CurrencyConverter.convert(10.0, Currency.EUR, Currency.VND, rates)!!, 0.001)
+        assertEquals(5.0, CurrencyConverter.convert(5.0, Currency.EUR, Currency.EUR, null)!!, 0.0)
+        assertNull(CurrencyConverter.convert(5.0, Currency.USD, Currency.VND, null))
+    }
+
+    @Test
+    fun totals_convertOtherCurrencies() {
+        val subs = listOf(sub(100_000.0, BillingCycle.MONTHLY), sub(4.0, BillingCycle.MONTHLY, currency = Currency.USD))
+        assertEquals(100_000.0, BillingMath.totalMonthly(subs, Currency.VND), 0.001)
+        assertEquals(200_000.0, BillingMath.totalMonthly(subs, Currency.VND, rates), 0.001)
+        val r = ReportsViewModel.build(subs, listOf(paid(now, 2.0, Currency.USD), paid(now, 50_000.0)), Currency.VND, now, rates)
+        assertEquals(200_000.0, r.monthly, 0.001)
+        assertEquals(2, r.activeCount)
+        assertEquals(0, r.excludedCount)
+        assertTrue(r.converted)
+        assertEquals(100_000.0, r.actualThisMonth, 0.001)
+        // Chưa có tỷ giá: giữ cách cũ, chỉ cộng cùng tiền tệ
+        val old = ReportsViewModel.build(subs, emptyList(), Currency.VND, now)
+        assertEquals(1, old.excludedCount)
+        assertFalse(old.converted)
     }
 }

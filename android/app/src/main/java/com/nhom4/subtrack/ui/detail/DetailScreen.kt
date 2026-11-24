@@ -233,7 +233,7 @@ private fun OverviewCard(sub: Subscription, state: DetailUiState, vm: DetailView
     if (reactivate) {
         DatePickDialog(
             title = stringResource(R.string.reactivate_dialog_title),
-            initial = BillingMath.nextOnOrAfter(sub.nextPaymentDate, sub.cycle, LocalDate.now(), sub.anchorDay),
+            initial = BillingMath.nextOnOrAfter(sub.nextPaymentDate, sub.cycle, LocalDate.now(), BillingMath.billingDayOf(sub)),
             onDismiss = { reactivate = false },
             onPick = { vm.reactivate(it); reactivate = false },
         )

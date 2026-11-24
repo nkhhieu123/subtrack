@@ -15,7 +15,27 @@ import java.time.LocalDate
  * - Sau mỗi lần ghi (thêm/sửa/xóa) thì đọc lại và phát dữ liệu mới qua [subscriptions], [tags];
  *   màn hình nào đang theo dõi StateFlow sẽ tự vẽ lại.
  */
-class SubscriptionRepository(private val db: SubTrackDatabase) {
+class SubscriptionRepository(db: SubTrackDatabase) {
+
+    /** Đổi được khi chuyển bộ dữ liệu ([switchTo]); mọi ViewModel vẫn giữ cùng repository này. */
+    @Volatile
+    private var db: SubTrackDatabase = db
+
+    /**
+     * Chuyển sang CSDL của bộ dữ liệu khác rồi đọc lại.
+     * shortcut: thao tác đang chạy dở trên CSDL cũ có thể lỗi "database closed" (đã bọc runCatching ở UI); nếu gặp thật thì thêm Mutex.
+     */
+    suspend fun switchTo(newDb: SubTrackDatabase) = withContext(Dispatchers.IO) {
+        val old = db
+        db = newDb
+        old.close()
+        refresh()
+    }
+
+    /** Toàn bộ dữ liệu gốc của bộ đang dùng (để xuất CSV/QR). */
+    suspend fun snapshot(): com.nhom4.subtrack.domain.Dataset = withContext(Dispatchers.IO) {
+        com.nhom4.subtrack.domain.Dataset(db.getSubscriptions(), db.getTags(), db.getPayments())
+    }
 
     private val _subscriptions = MutableStateFlow<List<Subscription>?>(null)
     /** null = đang tải lần đầu. */
@@ -42,13 +62,6 @@ class SubscriptionRepository(private val db: SubTrackDatabase) {
     /** CREATE (id = 0) hoặc UPDATE (id > 0) gói đăng ký. Trả về id. */
     suspend fun save(sub: Subscription): Long = withContext(Dispatchers.IO) {
         db.upsertSubscription(sub).also { refresh() }
-    }
-
-    /** CREATE nhiều gói trong một giao dịch (dùng khi nhập CSV). Trả về số gói đã lưu. */
-    suspend fun saveAll(subs: List<Subscription>): Int = withContext(Dispatchers.IO) {
-        db.inTransaction { subs.forEach { db.upsertSubscription(it) } }
-        refresh()
-        subs.size
     }
 
     /** DELETE gói; liên kết tag, nền tảng tự xóa theo khóa ngoại. */
@@ -96,7 +109,7 @@ class SubscriptionRepository(private val db: SubTrackDatabase) {
                         kind = kind, paidDate = paidDate, amount = amount, currency = if (amount != null) sub.currency else null,
                     )
                 )
-                db.updateNextPaymentDate(id, BillingMath.advance(period, sub.cycle, sub.anchorDay))
+                db.updateNextPaymentDate(id, BillingMath.advance(period, sub.cycle, BillingMath.billingDayOf(sub)))
                 db.setReminderState(id, null, null)
                 token(sub, pid)
             }
@@ -128,8 +141,7 @@ class SubscriptionRepository(private val db: SubTrackDatabase) {
     suspend fun reactivate(id: Long, next: LocalDate): UndoToken? = withContext(Dispatchers.IO) {
         val sub = db.getSubscriptions().firstOrNull { it.id == id } ?: return@withContext null
         db.inTransaction {
-            db.setStatusAndDate(id, SubscriptionStatus.ACTIVE, next)
-            db.setAnchorDay(id, BillingMath.anchorFor(next, sub.anchorDay))
+            db.setStatusAndDate(id, SubscriptionStatus.ACTIVE, next, next.dayOfMonth)
             db.setReminderState(id, null, null)
         }
         token(sub).also { refresh() }

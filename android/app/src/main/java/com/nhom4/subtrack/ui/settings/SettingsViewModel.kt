@@ -12,24 +12,22 @@ import com.nhom4.subtrack.data.Currency
 import com.nhom4.subtrack.data.Platform
 import com.nhom4.subtrack.data.Subscription
 import com.nhom4.subtrack.data.SubscriptionStatus
-import com.nhom4.subtrack.data.Tag
 import com.nhom4.subtrack.domain.BillingMath
-import com.nhom4.subtrack.domain.CsvImportResult
-import com.nhom4.subtrack.domain.CsvImporter
-import com.nhom4.subtrack.domain.CsvVocabulary
-import com.nhom4.subtrack.domain.CsvWriter
-import com.nhom4.subtrack.domain.ImportProblem
+import com.nhom4.subtrack.data.DatasetsState
+import com.nhom4.subtrack.domain.DatasetCsv
+import com.nhom4.subtrack.ui.ImportPreview
+import com.nhom4.subtrack.ui.importPreview
+import com.nhom4.subtrack.ui.saveImport
 import com.nhom4.subtrack.reminder.Reminders
-import com.nhom4.subtrack.ui.categoryName
-import com.nhom4.subtrack.ui.formatAmountInput
 import com.nhom4.subtrack.ui.formatDate
 import com.nhom4.subtrack.ui.formatMoney
 import com.nhom4.subtrack.ui.label
-import com.nhom4.subtrack.ui.organize.TAG_COLORS
 import com.nhom4.subtrack.ui.reports.ReportsViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -70,114 +68,59 @@ class SettingsViewModel(private val app: SubTrackApp) : ViewModel() {
         if (Reminders.notifyTest(app)) msg(R.string.test_notification_sent) else msg(R.string.notif_permission_denied)
     }
 
+    private val csv = DatasetCsv(app::getString)
+    val datasets: StateFlow<DatasetsState> = app.datasets.state
+
+    private val _preview = MutableStateFlow<ImportPreview?>(null)
+    val preview: StateFlow<ImportPreview?> = _preview.asStateFlow()
+
     fun exportCsv(uri: Uri) {
         viewModelScope.launch {
-            val subs = repo.subscriptions.value.orEmpty()
-            val tags = repo.tags.value.associateBy { it.id }
             val result = runCatching {
-                val rows = subs.sortedBy { it.name.lowercase() }.map { s ->
-                    listOf(
-                        s.name,
-                        formatAmountInput(s.amount, s.currency),
-                        s.currency.code,
-                        app.getString(s.cycle.label),
-                        formatDate(s.nextPaymentDate),
-                        app.categoryName(s.categoryKey),
-                        app.getString(s.status.label),
-                        s.remindDaysBefore?.toString().orEmpty(),
-                        s.tagIds.mapNotNull { tags[it]?.name }.joinToString("; "),
-                        s.platforms.joinToString("; ") { app.getString(it.label) },
-                        s.managementUrl.orEmpty(),
-                        s.notes.orEmpty(),
-                    )
-                }
-                val csv = CsvWriter.build(app.getString(R.string.csv_header), rows)
+                val data = repo.snapshot()
                 withContext(Dispatchers.IO) {
                     app.contentResolver.openOutputStream(uri, "wt")!!.use { out ->
                         // BOM để Excel nhận đúng tiếng Việt UTF-8
                         out.write(byteArrayOf(0xEF.toByte(), 0xBB.toByte(), 0xBF.toByte()))
-                        out.write(csv.toByteArray(Charsets.UTF_8))
+                        out.write(csv.write(data).toByteArray(Charsets.UTF_8))
                     }
                 }
-                rows.size
+                data.subscriptions.size
             }
             result.onSuccess { n -> _events.send(SettingsEvent.Message(app.resources.getQuantityString(R.plurals.export_done, n, n))) }
                 .onFailure { msg(R.string.export_failed) }
         }
     }
 
-    /**
-     * Nhập gói từ file CSV (cùng định dạng file xuất). Bỏ qua gói trùng tên với gói đã có hoặc
-     * trùng trong file; tag chưa có thì tạo mới. Báo kết quả bằng snackbar.
-     */
     fun importCsv(uri: Uri) {
         viewModelScope.launch {
-            val result = runCatching {
+            runCatching {
                 val text = withContext(Dispatchers.IO) {
-                    app.contentResolver.openInputStream(uri)!!.use { it.readBytes().toString(Charsets.UTF_8) }
+                    app.contentResolver.openInputStream(uri)!!.use { String(it.readBytes(), Charsets.UTF_8) }
                 }
-                if (repo.subscriptions.value == null) repo.refresh()
-                CsvImporter(vocabulary(), settings.value.defaultCurrency).parse(text)
-            }.getOrElse {
-                msg(R.string.import_failed)
-                return@launch
-            }
-            if (result !is CsvImportResult.Parsed) {
-                msg(R.string.import_bad_format)
-                return@launch
-            }
-            val taken = repo.subscriptions.value.orEmpty().map { it.name.lowercase() }.toMutableSet()
-            val fresh = result.rows.filter { taken.add(it.sub.name.lowercase()) }
-            val duplicates = result.rows.size - fresh.size
-
-            val saved = runCatching {
-                // Tạo tag còn thiếu rồi gắn id vào gói
-                val existing = repo.tags.value.map { it.name.lowercase() }.toSet()
-                fresh.flatMap { it.tagNames }.distinctBy { it.lowercase() }.filter { it.lowercase() !in existing }
-                    .forEachIndexed { i, name -> repo.saveTag(Tag(name = name, color = TAG_COLORS[i % TAG_COLORS.size])) }
-                val tagIds = repo.tags.value.associate { it.name.lowercase() to it.id }
-                repo.saveAll(fresh.map { row -> row.sub.copy(tagIds = row.tagNames.mapNotNull { tagIds[it.lowercase()] }) })
-            }.getOrElse {
-                msg(R.string.save_failed)
-                return@launch
-            }
-            if (saved > 0 && settings.value.remindersEnabled) Reminders.checkNow(app)
-
-            val text = buildString {
-                append(app.resources.getQuantityString(R.plurals.import_done, saved, saved))
-                if (duplicates > 0) append(app.resources.getQuantityString(R.plurals.import_duplicates, duplicates, duplicates))
-                result.errors.firstOrNull()?.let { first ->
-                    val n = result.errors.size
-                    append(app.resources.getQuantityString(R.plurals.import_errors, n, n, first.line, app.getString(problemText(first.problem))))
-                }
-            }
-            _events.send(SettingsEvent.Message(text))
+                csv.read(text)
+            }.onSuccess { _preview.value = app.importPreview(it) }
+                .onFailure { msg(R.string.import_failed) }
         }
     }
 
-    /** Nhãn hiển thị (tiếng Việt) và mã (tiếng Anh) để hiểu nội dung các ô trong file. */
-    private fun vocabulary() = CsvVocabulary(
-        headers = app.getString(R.string.csv_header).split(','),
-        cycles = CsvVocabulary.labels(BillingCycle.entries, { app.getString(it.label) }),
-        categories = CsvVocabulary.labels(Category.entries, { app.getString(it.label) }, { it.key }),
-        statuses = CsvVocabulary.labels(SubscriptionStatus.entries, { app.getString(it.label) }),
-        platforms = CsvVocabulary.labels(Platform.entries, { app.getString(it.label) }, { it.key }),
-        otherPlatformsNote = app.getString(R.string.import_other_platforms_note),
-    )
+    fun cancelImport() { _preview.value = null }
 
-    private fun problemText(p: ImportProblem): Int = when (p) {
-        ImportProblem.NAME -> R.string.import_problem_name
-        ImportProblem.AMOUNT -> R.string.import_problem_amount
-        ImportProblem.CURRENCY -> R.string.import_problem_currency
-        ImportProblem.CYCLE -> R.string.import_problem_cycle
-        ImportProblem.DATE -> R.string.import_problem_date
-        ImportProblem.STATUS -> R.string.import_problem_status
+    fun saveImport(name: String, activate: Boolean) {
+        val p = _preview.value ?: return
+        _preview.value = null
+        viewModelScope.launch {
+            runCatching { app.saveImport(p, name, activate) }
+                .onSuccess { _events.send(SettingsEvent.Message(it)) }
+                .onFailure { msg(R.string.save_failed) }
+        }
     }
 
     fun shareReport() {
         val subs = repo.subscriptions.value.orEmpty()
         val currency = settings.value.defaultCurrency
-        val report = ReportsViewModel.build(subs, repo.payments.value, currency, LocalDate.now())
+        val perUsd = app.rates.state.value.perUsd
+        val report = ReportsViewModel.build(subs, repo.payments.value, currency, LocalDate.now(), perUsd)
         if (report.activeCount == 0) {
             msg(R.string.reports_empty)
             return
@@ -186,8 +129,8 @@ class SettingsViewModel(private val app: SubTrackApp) : ViewModel() {
             appendLine(app.getString(R.string.share_report_header, formatDate(LocalDate.now())))
             appendLine(app.getString(R.string.share_report_totals, formatMoney(report.monthly, currency), formatMoney(report.yearly, currency)))
             appendLine(app.getString(R.string.share_report_count, report.activeCount))
-            subs.filter { it.status == SubscriptionStatus.ACTIVE && it.currency == currency }
-                .sortedByDescending { BillingMath.monthlyCost(it.amount, it.cycle) }
+            subs.filter { it.status == SubscriptionStatus.ACTIVE && BillingMath.monthlyIn(it, currency, perUsd) != null }
+                .sortedByDescending { BillingMath.monthlyIn(it, currency, perUsd) }
                 .forEach {
                     appendLine(app.getString(R.string.share_report_line, it.name, formatMoney(it.amount, it.currency), app.getString(it.cycle.label)))
                 }
@@ -213,8 +156,12 @@ class SettingsViewModel(private val app: SubTrackApp) : ViewModel() {
                 Subscription(name = "Duolingo Super", amount = 1_190_000.0, currency = Currency.VND, cycle = BillingCycle.YEARLY,
                     nextPaymentDate = today.plusMonths(8), category = Category.EDUCATION, platforms = listOf(Platform.ANDROID), notes = note),
             )
-            runCatching { demo.forEach { repo.save(it) } }
-                .onSuccess { msg(R.string.demo_added) }
+            // Bấm lại không tạo gói trùng: bỏ qua gói mẫu đã có cùng tên trong bộ đang dùng
+            val existing = repo.subscriptions.value.orEmpty().map { it.name.lowercase() }.toSet()
+            val toAdd = demo.filter { it.name.lowercase() !in existing }
+            if (toAdd.isEmpty()) { msg(R.string.demo_exists); return@launch }
+            runCatching { toAdd.forEach { repo.save(it) } }
+                .onSuccess { msg(R.string.demo_added, toAdd.size) }
                 .onFailure { msg(R.string.save_failed) }
         }
     }

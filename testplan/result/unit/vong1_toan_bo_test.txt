@@ -1,0 +1,13 @@
+gradlew.bat testDebugUnitTest lintDebug → BUILD SUCCESSFUL
+
+com.nhom4.subtrack.BillingMathTest: 29 test, 0 hỏng, 0 lỗi
+com.nhom4.subtrack.data.CrudDemoTest: 1 test, 0 hỏng, 0 lỗi
+com.nhom4.subtrack.data.DatasetRegistryTest: 4 test, 0 hỏng, 0 lỗi
+com.nhom4.subtrack.data.PaymentActionsTest: 12 test, 0 hỏng, 0 lỗi
+com.nhom4.subtrack.data.RatesRepositoryTest: 4 test, 0 hỏng, 0 lỗi
+com.nhom4.subtrack.data.SubTrackDatabaseCrudTest: 9 test, 0 hỏng, 0 lỗi
+com.nhom4.subtrack.data.SubTrackDatabaseTest: 8 test, 0 hỏng, 0 lỗi
+com.nhom4.subtrack.domain.DatasetCsvTest: 5 test, 0 hỏng, 0 lỗi
+com.nhom4.subtrack.domain.QrChunksTest: 4 test, 0 hỏng, 0 lỗi
+com.nhom4.subtrack.domain.QrGifTest: 3 test, 0 hỏng, 0 lỗi
+com.nhom4.subtrack.domain.TextSearchTest: 1 test, 0 hỏng, 0 lỗi

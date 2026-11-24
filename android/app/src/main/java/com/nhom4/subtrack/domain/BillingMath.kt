@@ -27,43 +27,41 @@ object BillingMath {
     fun quarterlyFromMonthly(monthly: Double) = monthly * 3.0
     fun yearlyFromMonthly(monthly: Double) = monthly * 12.0
 
-    /** Tổng chi phí tháng của các gói đang hoạt động bằng [currency]. */
-    fun totalMonthly(subs: List<Subscription>, currency: Currency): Double =
-        subs.filter { it.status == SubscriptionStatus.ACTIVE && it.currency == currency }
-            .sumOf { monthlyCost(it.amount, it.cycle) }
+    /** Chi phí tháng của gói quy về [to]; null nếu khác tiền tệ mà chưa có tỷ giá. */
+    fun monthlyIn(sub: Subscription, to: Currency, perUsd: Map<Currency, Double>?): Double? =
+        CurrencyConverter.convert(monthlyCost(sub.amount, sub.cycle), sub.currency, to, perUsd)
+
+    /** Tổng chi phí tháng của các gói đang hoạt động quy về [currency]; bỏ qua gói chưa quy đổi được. */
+    fun totalMonthly(subs: List<Subscription>, currency: Currency, perUsd: Map<Currency, Double>? = null): Double =
+        subs.filter { it.status == SubscriptionStatus.ACTIVE }
+            .sumOf { monthlyIn(it, currency, perUsd) ?: 0.0 }
 
     /**
-     * Kỳ kế tiếp sau [date]. Với chu kỳ tháng/quý/năm, [anchorDay] là ngày neo gốc: kỳ mới lấy
-     * đúng ngày neo, tháng nào thiếu ngày thì lùi về ngày cuối tháng
-     * (neo 31: 31/01 → 28/02 → 31/03 → 30/04). null = giữ hành vi cũ, cộng tháng từ [date].
+     * Kỳ sau của [date]. [billingDay] = ngày gốc của gói (vd 31): sau tháng ngắn vẫn quay lại ngày đó
+     * thay vì trôi vĩnh viễn về 28.
      */
-    fun advance(date: LocalDate, cycle: BillingCycle, anchorDay: Int? = null): LocalDate {
+    fun advance(date: LocalDate, cycle: BillingCycle, billingDay: Int = date.dayOfMonth): LocalDate {
         val next = when (cycle) {
             BillingCycle.WEEKLY -> return date.plusWeeks(1)
             BillingCycle.MONTHLY -> date.plusMonths(1)
             BillingCycle.QUARTERLY -> date.plusMonths(3)
             BillingCycle.YEARLY -> date.plusYears(1)
         }
-        return if (anchorDay == null) next else onAnchor(next, anchorDay)
+        return next.withDayOfMonth(minOf(maxOf(billingDay, next.dayOfMonth), next.lengthOfMonth()))
     }
 
-    /** Đưa [date] về ngày neo trong cùng tháng (lùi về cuối tháng nếu tháng ngắn hơn). */
-    fun onAnchor(date: LocalDate, anchorDay: Int): LocalDate =
-        date.withDayOfMonth(anchorDay.coerceIn(1, 31).coerceAtMost(date.lengthOfMonth()))
+    /** Ngày gốc dùng để tính kỳ sau. */
+    fun billingDayOf(sub: Subscription) = sub.billingDay ?: sub.nextPaymentDate.dayOfMonth
 
-    /**
-     * Ngày neo cần lưu khi người dùng chọn [date] làm kỳ tới. Nếu [date] chính là ngày neo cũ
-     * đã bị lùi về cuối tháng (neo 31, chọn 28/02) thì giữ neo cũ; còn lại neo theo ngày đã chọn.
-     */
-    fun anchorFor(date: LocalDate, previousAnchor: Int?): Int =
-        if (previousAnchor != null && onAnchor(date, previousAnchor) == date) previousAnchor else date.dayOfMonth
+    /** Tên gói tối đa (form và nhập CSV dùng chung). */
+    const val MAX_NAME_LENGTH = 60
 
-    /** Ngày thanh toán đầu tiên không trước [today], tính từ [date] theo chu kỳ và ngày neo. */
-    fun nextOnOrAfter(date: LocalDate, cycle: BillingCycle, today: LocalDate, anchorDay: Int? = null): LocalDate {
+    /** Ngày thanh toán đầu tiên không trước [today], tính từ [date] theo chu kỳ và ngày gốc [billingDay]. */
+    fun nextOnOrAfter(date: LocalDate, cycle: BillingCycle, today: LocalDate, billingDay: Int = date.dayOfMonth): LocalDate {
         var d = date
         var guard = 0
         while (d.isBefore(today) && guard < 10_000) {
-            d = advance(d, cycle, anchorDay)
+            d = advance(d, cycle, billingDay)
             guard++
         }
         return d
@@ -83,28 +81,19 @@ object BillingMath {
     }
 
     /**
-     * Đọc số tiền người dùng nhập. VND không có phần thập phân nên bỏ mọi dấu
-     * phân cách; USD/EUR chấp nhận cả "4.99" và "4,99". Trả về null nếu sai.
+     * Đọc số tiền theo quy ước vi-VN dùng chung cho mọi tiền tệ: "." tách nghìn,
+     * "," trước phần lẻ (1–2 chữ số, VND không có phần lẻ). "9.99" bị từ chối
+     * thay vì đoán. Trả về null nếu sai.
      */
     fun parseAmount(input: String, currency: Currency): Double? {
         val raw = input.trim().replace(" ", "")
-        if (raw.isEmpty() || !raw.matches(Regex("""[\d.,]+"""))) return null
-        // Dấu cuối cùng theo sau bởi 1–2 chữ số là dấu thập phân (không áp dụng cho VND)
-        val lastSep = maxOf(raw.lastIndexOf('.'), raw.lastIndexOf(','))
-        val hasDecimal = currency != Currency.VND && lastSep >= 0 && raw.length - lastSep - 1 in 1..2
-        val intPart = if (hasDecimal) raw.substring(0, lastSep) else raw
-        val fraction = if (hasDecimal) raw.substring(lastSep + 1) else ""
-        if (!isGroupedInteger(intPart)) return null
-        val digits = intPart.replace(".", "").replace(",", "")
+        val m = Regex("""(\d+(?:\.\d{3})*)(?:,(\d{1,2}))?""").matchEntire(raw) ?: return null
+        val intPart = m.groupValues[1]
+        val fraction = m.groupValues[2]
+        if (intPart.contains('.') && intPart.substringBefore('.').length > 3) return null
+        if (fraction.isNotEmpty() && currency == Currency.VND) return null
+        val digits = intPart.replace(".", "")
         return (if (fraction.isEmpty()) digits else "$digits.$fraction").toDoubleOrNull()
-    }
-
-    /** "1234", "1.234", "1,234,567" hợp lệ; "1.2.3" thì không. */
-    private fun isGroupedInteger(s: String): Boolean {
-        if (s.isEmpty()) return false
-        val groups = s.split('.', ',')
-        if (groups.size == 1) return groups[0].all { it.isDigit() }
-        return groups[0].length in 1..3 && groups.drop(1).all { it.length == 3 } && groups.all { g -> g.all { it.isDigit() } }
     }
 
     fun isValidUrl(url: String): Boolean =

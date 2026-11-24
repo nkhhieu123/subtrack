@@ -18,8 +18,8 @@ import java.time.LocalDate
  * - subscription_tags: bảng nối N–N giữa gói và tag.
  * - payments: lịch sử chi trả (đã trả / bỏ qua) theo từng kỳ của gói.
  */
-class SubTrackDatabase(context: Context) :
-    SQLiteOpenHelper(context, DB_NAME, null, DB_VERSION) {
+class SubTrackDatabase(context: Context, name: String = DB_NAME) :
+    SQLiteOpenHelper(context, name, null, DB_VERSION) {
 
     /**
      * Bật khóa ngoại sau khi tạo/nâng cấp xong. Không bật trong onConfigure vì khi nâng cấp
@@ -42,8 +42,9 @@ class SubTrackDatabase(context: Context) :
      * - Version 2: nền tảng tách ra bảng subscription_platforms.
      * - Version 3: nền tảng quay lại dạng chuỗi; giữ tag không phân biệt hoa/thường và CHECK.
      * - Version 4: thêm trạng thái nhắc hạn và bảng payments.
-     * - Version 5: thêm cột custom_category (tên danh mục tự nhập khi chọn "Khác").
-     * - Version 6 (hiện tại): thêm billing_anchor_day (ngày neo gốc để ngày 31 không bị trôi).
+     * - Version 5: thêm billing_day (ngày gốc của gói) để kỳ sau không trôi về 28.
+     * - Version 6 (hiện tại): thêm custom_category (tên danh mục tự nhập khi chọn "Khác")
+     *   cho cả subscriptions và payments.
      */
     override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
         if (oldVersion < 3) {
@@ -55,19 +56,13 @@ class SubTrackDatabase(context: Context) :
                 db.execSQL("ALTER TABLE subscriptions ADD COLUMN snoozed_until INTEGER")
                 db.execSQL("ALTER TABLE subscriptions ADD COLUMN last_notified_on INTEGER")
             }
-            if (oldVersion < 5) db.execSQL("ALTER TABLE subscriptions ADD COLUMN custom_category TEXT")
-            if (oldVersion < 6) db.execSQL("ALTER TABLE subscriptions ADD COLUMN billing_anchor_day INTEGER")
-        }
-        // Dữ liệu cũ: lấy ngày neo theo ngày thanh toán tiếp theo đang lưu (ngày đã trôi thì không khôi phục được)
-        if (oldVersion < 6) {
-            db.execSQL(
-                "UPDATE subscriptions SET billing_anchor_day = " +
-                    "CAST(strftime('%d', next_payment_date * 86400, 'unixepoch') AS INTEGER) WHERE billing_anchor_day IS NULL"
-            )
+            // v5: ngày gốc của gói; v6: danh mục tự nhập (bảng dựng lại ở nhánh < 3 đã có cả hai cột)
+            if (oldVersion < 5) db.execSQL("ALTER TABLE subscriptions ADD COLUMN billing_day INTEGER")
+            if (oldVersion < 6) db.execSQL("ALTER TABLE subscriptions ADD COLUMN custom_category TEXT")
         }
         // Bảng payments tạo mới đã có sẵn custom_category
         if (oldVersion < 4) createPayments(db)
-        else if (oldVersion < 5) db.execSQL("ALTER TABLE payments ADD COLUMN custom_category TEXT")
+        else if (oldVersion < 6) db.execSQL("ALTER TABLE payments ADD COLUMN custom_category TEXT")
     }
 
     /** Chạy [block] trong một giao dịch; ném lỗi thì hoàn tác. */
@@ -106,9 +101,9 @@ class SubTrackDatabase(context: Context) :
                 put("currency", sub.currency.name)
                 put("billing_cycle", sub.cycle.name)
                 put("next_payment_date", sub.nextPaymentDate.toEpochDay())
+                put("billing_day", sub.billingDay ?: sub.nextPaymentDate.dayOfMonth)
                 put("category", sub.category.key)
                 put("custom_category", sub.categoryKey.customName)
-                put("billing_anchor_day", sub.anchorDay)
                 put("status", sub.status.name)
                 if (sub.remindDaysBefore == null) putNull("remind_days_before") else put("remind_days_before", sub.remindDaysBefore)
                 put("management_url", sub.managementUrl)
@@ -154,21 +149,15 @@ class SubTrackDatabase(context: Context) :
         )
     }
 
-    fun setStatusAndDate(id: Long, status: SubscriptionStatus, next: LocalDate) {
+    /** [billingDay] khác null khi người dùng chọn ngày mới (kích hoạt lại): đổi luôn ngày gốc. */
+    fun setStatusAndDate(id: Long, status: SubscriptionStatus, next: LocalDate, billingDay: Int? = null) {
         writableDatabase.update(
             "subscriptions",
             ContentValues().apply {
                 put("status", status.name)
                 put("next_payment_date", next.toEpochDay())
+                if (billingDay != null) put("billing_day", billingDay)
             },
-            "id = ?", arrayOf(id.toString()),
-        )
-    }
-
-    fun setAnchorDay(id: Long, day: Int) {
-        writableDatabase.update(
-            "subscriptions",
-            ContentValues().apply { put("billing_anchor_day", day) },
             "id = ?", arrayOf(id.toString()),
         )
     }
@@ -263,6 +252,24 @@ class SubTrackDatabase(context: Context) :
         }
     }
 
+    /**
+     * Ghi cả bộ dữ liệu trong một giao dịch (lỗi thì không ghi gì). Id trong [d] chỉ dùng để nối
+     * gói ↔ tag ↔ lịch sử; dòng mới nhận id mới.
+     */
+    fun importAll(d: com.nhom4.subtrack.domain.Dataset) = inTransaction {
+        val db = writableDatabase
+        val tagIds = d.tags.associate { t ->
+            t.id to db.insertOrThrow("tags", null, ContentValues().apply {
+                put("name", t.name)
+                put("color", t.color)
+            })
+        }
+        val subIds = d.subscriptions.associate { s ->
+            s.id to upsertSubscription(s.copy(id = 0, tagIds = s.tagIds.mapNotNull { tagIds[it] }))
+        }
+        d.payments.forEach { p -> insertPayment(p.copy(id = 0, subscriptionId = p.subscriptionId?.let { subIds[it] })) }
+    }
+
     private fun Cursor.toPayment(): Payment {
         fun longOrNull(col: String) = getColumnIndexOrThrow(col).let { if (isNull(it)) null else getLong(it) }
         return Payment(
@@ -292,7 +299,6 @@ class SubTrackDatabase(context: Context) :
             nextPaymentDate = LocalDate.ofEpochDay(getLong(getColumnIndexOrThrow("next_payment_date"))),
             category = Category.fromKey(getString(getColumnIndexOrThrow("category"))),
             customCategory = getString(getColumnIndexOrThrow("custom_category")),
-            billingAnchorDay = getColumnIndexOrThrow("billing_anchor_day").let { if (isNull(it)) null else getInt(it) },
             status = SubscriptionStatus.valueOf(getString(getColumnIndexOrThrow("status"))),
             remindDaysBefore = if (isNull(remindIdx)) null else getInt(remindIdx),
             managementUrl = getString(getColumnIndexOrThrow("management_url")),
@@ -303,6 +309,7 @@ class SubTrackDatabase(context: Context) :
             updatedAt = getLong(getColumnIndexOrThrow("updated_at")),
             snoozedUntil = getColumnIndexOrThrow("snoozed_until").let { if (isNull(it)) null else LocalDate.ofEpochDay(getLong(it)) },
             lastNotifiedOn = getColumnIndexOrThrow("last_notified_on").let { if (isNull(it)) null else LocalDate.ofEpochDay(getLong(it)) },
+            billingDay = getColumnIndexOrThrow("billing_day").let { if (isNull(it)) null else getInt(it) },
         )
     }
 
@@ -398,8 +405,8 @@ class SubTrackDatabase(context: Context) :
                     updated_at INTEGER NOT NULL,
                     snoozed_until INTEGER,
                     last_notified_on INTEGER,
-                    custom_category TEXT,
-                    billing_anchor_day INTEGER
+                    billing_day INTEGER,
+                    custom_category TEXT
                 )
                 """.trimIndent()
             )
