@@ -1,6 +1,6 @@
 package com.nhom4.subtrack.domain
 
-import com.nhom4.subtrack.data.Category
+import com.nhom4.subtrack.data.CategoryKey
 import com.nhom4.subtrack.data.Currency
 import com.nhom4.subtrack.data.Payment
 import com.nhom4.subtrack.data.PaymentKind
@@ -26,9 +26,9 @@ object SpendMath {
             m to total(p, currency, m.atDay(1), m.plusMonths(1).atDay(1))
         }
 
-    /** Giảm dần, bỏ danh mục bằng 0. */
-    fun byCategory(p: List<Payment>, currency: Currency, from: LocalDate, toExclusive: LocalDate): List<Pair<Category, Double>> =
-        paid(p, currency, from, toExclusive).groupBy { it.category }
+    /** Giảm dần, bỏ danh mục bằng 0. Danh mục tự nhập (khi chọn "Khác") được tách riêng. */
+    fun byCategory(p: List<Payment>, currency: Currency, from: LocalDate, toExclusive: LocalDate): List<Pair<CategoryKey, Double>> =
+        paid(p, currency, from, toExclusive).groupBy { it.categoryKey }
             .map { (c, l) -> c to l.sumOf { it.amount ?: 0.0 } }
             .filter { it.second > 0 }
             .sortedByDescending { it.second }

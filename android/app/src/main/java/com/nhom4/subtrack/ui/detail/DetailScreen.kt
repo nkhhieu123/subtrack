@@ -86,6 +86,7 @@ import com.nhom4.subtrack.ui.EmptyState
 import com.nhom4.subtrack.ui.LoadingState
 import com.nhom4.subtrack.ui.SectionHeader
 import com.nhom4.subtrack.ui.formatDate
+import com.nhom4.subtrack.ui.categoryName
 import com.nhom4.subtrack.ui.formatMoney
 import com.nhom4.subtrack.ui.label
 import com.nhom4.subtrack.ui.theme.MonthOrange
@@ -214,7 +215,7 @@ private fun OverviewCard(sub: Subscription, state: DetailUiState, vm: DetailView
         }
         Text(
             stringResource(R.string.monthly_equivalent, formatMoney(BillingMath.monthlyCost(sub.amount, sub.cycle), sub.currency)) +
-                " · " + stringResource(sub.category.label),
+                " · " + categoryName(sub),
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
@@ -232,7 +233,7 @@ private fun OverviewCard(sub: Subscription, state: DetailUiState, vm: DetailView
     if (reactivate) {
         DatePickDialog(
             title = stringResource(R.string.reactivate_dialog_title),
-            initial = BillingMath.nextOnOrAfter(sub.nextPaymentDate, sub.cycle, LocalDate.now()),
+            initial = BillingMath.nextOnOrAfter(sub.nextPaymentDate, sub.cycle, LocalDate.now(), sub.anchorDay),
             onDismiss = { reactivate = false },
             onPick = { vm.reactivate(it); reactivate = false },
         )

@@ -31,6 +31,10 @@ data class EditForm(
     val cycle: BillingCycle = BillingCycle.MONTHLY,
     val nextPaymentDate: LocalDate = LocalDate.now().plusMonths(1),
     val category: Category = Category.ENTERTAINMENT,
+    /** Tên danh mục tự nhập, chỉ dùng khi [category] = OTHER. */
+    val customCategory: String = "",
+    /** Ngày neo đang lưu của gói (null với gói mới); giữ lại khi người dùng không đổi ngày. */
+    val anchorDay: Int? = null,
     val status: SubscriptionStatus = SubscriptionStatus.ACTIVE,
     val remindDaysBefore: Int? = 3,
     val tagIds: Set<Long> = emptySet(),
@@ -43,8 +47,9 @@ data class FormErrors(
     @StringRes val name: Int? = null,
     @StringRes val amount: Int? = null,
     @StringRes val url: Int? = null,
+    @StringRes val customCategory: Int? = null,
 ) {
-    val any get() = name != null || amount != null || url != null
+    val any get() = name != null || amount != null || url != null || customCategory != null
 }
 
 sealed interface EditEvent {
@@ -52,6 +57,8 @@ sealed interface EditEvent {
     data object Done : EditEvent
     data object Deleted : EditEvent
 }
+
+const val MAX_CUSTOM_CATEGORY = 30
 
 class EditViewModel(private val app: SubTrackApp, private val id: Long) : ViewModel() {
     private val repo = app.repository
@@ -72,6 +79,13 @@ class EditViewModel(private val app: SubTrackApp, private val id: Long) : ViewMo
 
     val tags: StateFlow<List<Tag>> = repo.tags
     val remindersEnabled get() = app.settings.settings.value.remindersEnabled
+
+    /** Các tên danh mục tự nhập đã dùng ở gói khác, để chọn nhanh và gõ thống nhất. */
+    val customCategorySuggestions: List<String>
+        get() = repo.subscriptions.value.orEmpty()
+            .mapNotNull { it.categoryKey.customName }
+            .distinctBy { it.lowercase() }
+            .sortedWith(String.CASE_INSENSITIVE_ORDER)
 
     private val _events = Channel<EditEvent>(Channel.BUFFERED)
     val events = _events.receiveAsFlow()
@@ -128,7 +142,9 @@ class EditViewModel(private val app: SubTrackApp, private val id: Long) : ViewMo
                         currency = f.currency,
                         cycle = f.cycle,
                         nextPaymentDate = f.nextPaymentDate,
+                        billingAnchorDay = BillingMath.anchorFor(f.nextPaymentDate, f.anchorDay),
                         category = f.category,
+                        customCategory = normalizedCustomCategory(f),
                         status = f.status,
                         remindDaysBefore = f.remindDaysBefore,
                         managementUrl = f.url.trim().ifEmpty { null },
@@ -174,7 +190,20 @@ class EditViewModel(private val app: SubTrackApp, private val id: Long) : ViewMo
             else -> null
         }
         val urlErr = if (f.url.isNotBlank() && !BillingMath.isValidUrl(f.url)) R.string.err_url_invalid else null
-        return FormErrors(nameErr, amountErr, urlErr) to amount
+        val customErr = when {
+            f.category != Category.OTHER -> null
+            f.customCategory.isBlank() -> R.string.err_custom_category_required
+            f.customCategory.trim().length > MAX_CUSTOM_CATEGORY -> R.string.err_custom_category_too_long
+            else -> null
+        }
+        return FormErrors(nameErr, amountErr, urlErr, customErr) to amount
+    }
+
+    /** Chỉ lưu khi chọn "Khác"; trùng tên đã có (khác hoa/thường) thì dùng lại cách viết cũ để gom nhóm đúng. */
+    private fun normalizedCustomCategory(f: EditForm): String? {
+        if (f.category != Category.OTHER) return null
+        val name = f.customCategory.trim().replace(Regex("""\s+"""), " ").ifEmpty { return null }
+        return customCategorySuggestions.firstOrNull { it.equals(name, ignoreCase = true) } ?: name
     }
 
     private fun Subscription.toForm() = EditForm(
@@ -184,6 +213,8 @@ class EditViewModel(private val app: SubTrackApp, private val id: Long) : ViewMo
         cycle = cycle,
         nextPaymentDate = nextPaymentDate,
         category = category,
+        customCategory = categoryKey.customName.orEmpty(),
+        anchorDay = billingAnchorDay,
         status = status,
         remindDaysBefore = remindDaysBefore,
         tagIds = tagIds.toSet(),

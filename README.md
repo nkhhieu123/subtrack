@@ -59,17 +59,19 @@ Chạy kiểm thử: `gradlew.bat testDebugUnitTest lintDebug`.
 - **Lịch sử chi trả**: mỗi lần đánh dấu đã trả được lưu lại; xóa gói vẫn giữ lịch sử chi tiêu trong Báo cáo.
 - **Tổ chức**: tạo / sửa / xóa tag có màu (chặn trùng tên); thống kê số gói theo nền tảng; chi phí tháng theo danh mục.
 - **Báo cáo**: tổng chi phí mỗi tuần / tháng / quý / năm; mục "Chi thực tế" (tháng này, năm nay, 6 tháng gần nhất, theo danh mục trong 12 tháng) bên cạnh mục "Ước tính"; biểu đồ tròn cơ cấu chi phí (gộp "Các gói khác" khi nhiều hơn 6 gói); chi phí theo danh mục; 3 gói tốn kém nhất; chọn tiền tệ báo cáo (không quy đổi tỷ giá, có ghi chú số gói bị loại).
-- **Nhắc hạn**: WorkManager kiểm tra mỗi ngày và ngay sau khi lưu gói; nhắc một lần khi vào khoảng nhắc, một lần vào đúng ngày đến hạn, và mỗi 3 ngày khi quá hạn; có nhắc lại sau; thông báo có nút "Đã trả" và "Nhắc sau 1 ngày"; xin quyền thông báo trên Android 13+; nút gửi thông báo thử.
-- **Cài đặt**: tiền tệ mặc định, bật/tắt nhắc hạn, xuất CSV (UTF-8, mở được bằng Excel), chia sẻ báo cáo chi phí dạng văn bản, thêm 5 gói mẫu (ghi chú rõ "Gói mẫu để demo"), xóa toàn bộ dữ liệu (có xác nhận), giới thiệu.
-- **Lưu trữ**: SQLite trên máy (bảng `subscriptions`, `tags`, `subscription_tags`, `payments`), truy cập qua Repository; đóng mở app dữ liệu vẫn còn. Nâng cấp dữ liệu từ bản v1 (nhánh main) và v3 (nhánh tuan3) không mất gói/tag; bản v2 không được hỗ trợ.
+- **Ngày thanh toán**: lưu "ngày neo" gốc của gói nên chu kỳ tháng/quý/năm không bị trôi (31/01 → 28/02 → 31/03 → 30/04, không thành 28/03); năm nhuận 29/02 cũng quay lại đúng.
+- **Danh mục "Khác"**: chọn "Khác" thì nhập tên danh mục riêng (có gợi ý các tên đã dùng); tên này hiện ở danh sách, chi tiết, báo cáo và được thống kê thành nhóm riêng.
+- **Nhắc hạn**: WorkManager chạy mỗi sáng lúc 8 giờ (thường trong khoảng 8–9 giờ, tùy chế độ tiết kiệm pin), và kiểm tra ngay sau khi lưu gói nhưng không gửi thông báo từ 22 giờ đến 8 giờ sáng; nhắc một lần khi vào khoảng nhắc, một lần vào đúng ngày đến hạn, và mỗi 3 ngày khi quá hạn; có nhắc lại sau; thông báo có nút "Đã trả" và "Nhắc sau 1 ngày"; xin quyền thông báo trên Android 13+; nút gửi thông báo thử.
+- **Cài đặt**: tiền tệ mặc định, bật/tắt nhắc hạn, xuất CSV (UTF-8, mở được bằng Excel), nhập nhiều gói từ CSV (cùng định dạng file xuất; nhận dấu phẩy hoặc chấm phẩy; bỏ qua gói trùng tên; tạo tag còn thiếu; nền tảng ngoài 12 nền tảng có sẵn được chọn "Khác" và ghi tên vào ghi chú; báo số dòng lỗi và lý do), chia sẻ báo cáo chi phí dạng văn bản, thêm 5 gói mẫu (ghi chú rõ "Gói mẫu để demo"), xóa toàn bộ dữ liệu (có xác nhận), giới thiệu.
+- **Lưu trữ**: SQLite trên máy (bảng `subscriptions`, `tags`, `subscription_tags`, `payments`), truy cập qua Repository; đóng mở app dữ liệu vẫn còn. Lược đồ hiện tại là v6 (thêm `custom_category`, `billing_anchor_day`). Nâng cấp dữ liệu từ bản v1 (nhánh main), v3 (nhánh tuan3), v4 không mất gói/tag; bản v2 không được hỗ trợ.
 - **Việt hóa**: mọi chuỗi nằm trong `res/values/strings.xml` (tiếng Việt là mặc định); ứng dụng ép locale `vi-VN` nên DatePicker, định dạng tiền (260.000 ₫) và ngày (dd/MM/yyyy) đều theo tiếng Việt dù máy đặt ngôn ngữ khác. Chỉ giữ nguyên tên riêng (Android, iPhone, PlayStation…) và mã tiền tệ.
 - **Giao diện sáng / tối** theo cài đặt hệ thống.
 
 ## Đã kiểm thử
 
 - `assembleDebug`: build thành công.
-- `testDebugUnitTest`: 43/43 test qua, gồm: quy đổi chi phí theo chu kỳ, tổng chi theo tiền tệ, cuộn ngày thanh toán, cuối tháng, mức báo gia hạn, đọc số tiền VND/USD, kiểm tra URL, điều kiện nhắc hạn, nội dung thông báo theo số ngày còn lại, số liệu báo cáo, CSV, định dạng tiền tiếng Việt (BillingMathTest: 25); hành động thanh toán như Đã trả, Bỏ qua, Nhắc lại sau, Hoàn tác, Kích hoạt lại và trạng thái nhắc hạn (PaymentActionsTest: 11); cơ sở dữ liệu SQLite, lịch sử chi trả và nâng cấp schema từ v1/v3 lên v4 (SubTrackDatabaseTest: 7). Unit test đã phát hiện và giúp sửa một lỗi đọc số tiền (`1.2.3.4` từng được chấp nhận).
-- `lintDebug`: không còn lỗi.
+- `testDebugUnitTest`: 66/66 test qua, gồm: quy đổi chi phí theo chu kỳ, tổng chi theo tiền tệ, cuộn ngày thanh toán, cuối tháng, mức báo gia hạn, đọc số tiền VND/USD, kiểm tra URL, điều kiện nhắc hạn, nội dung thông báo theo số ngày còn lại, số liệu báo cáo, CSV, định dạng tiền tiếng Việt (BillingMathTest: 25); hành động thanh toán như Đã trả, Bỏ qua, Nhắc lại sau, Hoàn tác, Kích hoạt lại và trạng thái nhắc hạn (PaymentActionsTest: 11); cơ sở dữ liệu SQLite, lịch sử chi trả và nâng cấp schema từ v1/v3/v4 lên v6, lưu danh mục tự nhập và ngày neo (SubTrackDatabaseTest: 10); ngày neo không trôi, giờ nhắc 8 giờ sáng, đọc và nhập CSV (AnchorReminderImportTest: 10); CRUD SQLite (SubTrackDatabaseCrudTest: 9, CrudDemoTest: 1). Unit test đã phát hiện và giúp sửa một lỗi đọc số tiền (`1.2.3.4` từng được chấp nhận).
+- `lintDebug`: không còn lỗi trong mã nguồn (trên máy dev, lint có thể báo `PropertyEscape` ở `local.properties`, file cấu hình máy không nằm trong git).
 - **Chạy thử trên máy ảo** (AVD API 36.1): nâng cấp CSDL giữ nguyên gói cũ; màn hình xem gói; Đã trả (ghi lịch sử, chuyển kỳ, snackbar Hoàn tác); hoàn tác bằng nút ↶ trong lịch sử; mục "Chi thực tế" trong Báo cáo; thông báo nhắc hạn có nút "Đã trả" (bấm xong thông báo biến mất, gói chuyển kỳ); chạm vào thông báo mở đúng màn hình của gói; kiểm tra lại trong cùng ngày không nhắc trùng. Không có lỗi crash trong logcat.
 
 ## Chưa hoàn thành / giới hạn
@@ -78,9 +80,10 @@ Chạy kiểm thử: `gradlew.bat testDebugUnitTest lintDebug`.
 - **Lịch sử chi trả** chỉ có từ khi người dùng bấm "Đã trả"; các kỳ trước khi cài bản này và các kỳ không được xác nhận không có trong "Chi thực tế". Lần đầu chạy sau khi nâng cấp, gói đang trong khoảng nhắc có thể được nhắc thêm một lần.
 - **Không đồng bộ đám mây / không có tài khoản**: Sub Radar dùng iCloud. Kế hoạch nhóm xếp đăng nhập vào phần mở rộng; muốn làm thì cần một dự án Firebase (file `google-services.json`, bật Authentication và Firestore).
 - **Không quy đổi tỷ giá**: báo cáo chỉ cộng các gói cùng một tiền tệ, vì quy đổi cần API tỷ giá bên ngoài.
-- **Nền tảng cố định**: có 12 nền tảng có sẵn, chưa cho tự tạo nền tảng như Sub Radar.
-- **Xuất dữ liệu** chỉ hỗ trợ CSV (Sub Radar có thêm JSON và văn bản thuần), chưa kèm lịch sử chi trả; chưa có nhập lại dữ liệu từ file.
-- **Thông báo hằng ngày** chạy theo lịch của WorkManager nên giờ nhắc không cố định chính xác.
+- **Nền tảng cố định**: có 12 nền tảng có sẵn, chưa cho tự tạo nền tảng như Sub Radar; khi nhập CSV, nền tảng lạ được chọn "Khác" và giữ tên trong ghi chú.
+- **Ngày neo của dữ liệu cũ**: gói đã bị trôi trước khi nâng cấp (ví dụ đang ở 28/03 thay vì 31/03) lấy ngày đang lưu làm ngày neo; sửa lại ngày trong form là xong.
+- **Xuất dữ liệu** chỉ hỗ trợ CSV (Sub Radar có thêm JSON và văn bản thuần), chưa kèm lịch sử chi trả; nhập CSV chỉ thêm gói mới (không cập nhật gói trùng tên, không nhập lịch sử chi trả).
+- **Giờ nhắc** hẹn lúc 8 giờ sáng nhưng WorkManager không cam kết đúng phút: máy ở chế độ Doze/tiết kiệm pin có thể trễ đến khoảng 9 giờ hoặc hơn; chưa cho người dùng tự chọn giờ nhắc.
 
 ## API, biến môi trường, quyền
 

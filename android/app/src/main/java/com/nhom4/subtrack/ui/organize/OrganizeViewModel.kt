@@ -3,7 +3,7 @@ package com.nhom4.subtrack.ui.organize
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.nhom4.subtrack.SubTrackApp
-import com.nhom4.subtrack.data.Category
+import com.nhom4.subtrack.data.CategoryKey
 import com.nhom4.subtrack.data.Currency
 import com.nhom4.subtrack.data.Platform
 import com.nhom4.subtrack.data.SubscriptionStatus
@@ -17,7 +17,7 @@ import kotlinx.coroutines.launch
 
 data class TagRow(val tag: Tag, val count: Int)
 data class PlatformRow(val platform: Platform, val count: Int)
-data class CategoryRow(val category: Category, val count: Int, val monthly: Double)
+data class CategoryRow(val category: CategoryKey, val count: Int, val monthly: Double)
 
 data class OrganizeUiState(
     val loading: Boolean = true,
@@ -38,10 +38,9 @@ class OrganizeViewModel(app: SubTrackApp) : ViewModel() {
             tags = tags.map { t -> TagRow(t, subs.count { t.id in it.tagIds }) },
             platforms = Platform.entries.map { p -> PlatformRow(p, subs.count { p in it.platforms }) }
                 .filter { it.count > 0 }.sortedByDescending { it.count },
-            categories = Category.entries.map { c ->
-                val inCat = active.filter { it.category == c }
+            categories = active.groupBy { it.categoryKey }.map { (c, inCat) ->
                 CategoryRow(c, inCat.size, inCat.sumOf { BillingMath.monthlyCost(it.amount, it.cycle) })
-            }.filter { it.count > 0 }.sortedByDescending { it.monthly },
+            }.sortedByDescending { it.monthly },
             currency = settings.defaultCurrency,
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), OrganizeUiState())

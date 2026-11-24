@@ -21,6 +21,17 @@ enum class Category(val key: String, val color: Long) {
     }
 }
 
+/**
+ * Danh mục dùng để hiển thị và gom nhóm: danh mục cố định, hoặc tên người dùng tự nhập
+ * khi chọn "Khác" ([customName] chỉ có giá trị khi [category] = OTHER).
+ */
+data class CategoryKey(val category: Category, val customName: String? = null) {
+    companion object {
+        fun of(category: Category, custom: String?): CategoryKey =
+            CategoryKey(category, custom?.trim()?.takeIf { category == Category.OTHER && it.isNotEmpty() })
+    }
+}
+
 /** Nền tảng có sẵn; lưu theo [key]. */
 enum class Platform(val key: String) {
     ANDROID("android"), IPHONE("iphone"), IPAD("ipad"), TABLET("tablet"),
@@ -48,6 +59,8 @@ data class Subscription(
     val cycle: BillingCycle,
     val nextPaymentDate: LocalDate,
     val category: Category,
+    /** Tên danh mục tự nhập khi [category] = OTHER; null = chỉ hiện "Khác". */
+    val customCategory: String? = null,
     val status: SubscriptionStatus = SubscriptionStatus.ACTIVE,
     /** Số ngày nhắc trước hạn; null = không nhắc. */
     val remindDaysBefore: Int? = 3,
@@ -61,7 +74,16 @@ data class Subscription(
     val snoozedUntil: LocalDate? = null,
     /** Ngày gửi thông báo gần nhất cho kỳ hiện tại; null = chưa nhắc. */
     val lastNotifiedOn: LocalDate? = null,
-)
+    /**
+     * Ngày neo gốc trong tháng (1–31) của chu kỳ tháng/quý/năm, ví dụ 31 cho gói bắt đầu 31/01.
+     * Giữ để kỳ sau quay lại đúng ngày: 31/01 → 28/02 → 31/03, không trôi thành 28/03.
+     * null (dữ liệu cũ) = lấy ngày của [nextPaymentDate].
+     */
+    val billingAnchorDay: Int? = null,
+) {
+    val categoryKey: CategoryKey get() = CategoryKey.of(category, customCategory)
+    val anchorDay: Int get() = billingAnchorDay ?: nextPaymentDate.dayOfMonth
+}
 
 enum class PaymentKind { PAID, SKIPPED }
 
@@ -80,4 +102,7 @@ data class Payment(
     val amount: Double?,
     val currency: Currency?,
     val createdAt: Long = 0,
-)
+    val customCategory: String? = null,
+) {
+    val categoryKey: CategoryKey get() = CategoryKey.of(category, customCategory)
+}

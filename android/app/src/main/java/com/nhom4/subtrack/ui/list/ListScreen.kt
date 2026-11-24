@@ -80,6 +80,7 @@ import com.nhom4.subtrack.ui.EmptyState
 import com.nhom4.subtrack.ui.ErrorState
 import com.nhom4.subtrack.ui.LoadingState
 import com.nhom4.subtrack.ui.formatDate
+import com.nhom4.subtrack.ui.categoryName
 import com.nhom4.subtrack.ui.formatMoney
 import com.nhom4.subtrack.ui.label
 import com.nhom4.subtrack.ui.theme.MonthOrange
@@ -323,7 +324,7 @@ private fun SubscriptionRow(sub: Subscription, tags: Map<Long, Tag>, onClick: ()
                         color = if (active) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                     Text(
-                        stringResource(sub.cycle.label) + " · " + stringResource(sub.category.label),
+                        stringResource(sub.cycle.label) + " · " + categoryName(sub),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )

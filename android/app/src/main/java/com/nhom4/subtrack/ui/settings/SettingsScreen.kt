@@ -21,6 +21,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.DeleteForever
 import androidx.compose.material.icons.outlined.FileDownload
+import androidx.compose.material.icons.outlined.FileUpload
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.LibraryAdd
 import androidx.compose.material.icons.outlined.NotificationsActive
@@ -68,6 +69,11 @@ import com.nhom4.subtrack.ui.SelectField
 import com.nhom4.subtrack.ui.label
 import kotlinx.coroutines.launch
 
+/** File CSV có thể mang nhiều kiểu MIME tùy ứng dụng lưu (Excel, Google Drive, trình quản lý file). */
+private val CSV_MIME_TYPES = arrayOf(
+    "text/csv", "text/comma-separated-values", "application/csv", "text/plain", "application/vnd.ms-excel",
+)
+
 @Composable
 fun SettingsScreen(vm: SettingsViewModel = viewModel(factory = AppViewModels.Factory)) {
     val context = LocalContext.current
@@ -99,6 +105,9 @@ fun SettingsScreen(vm: SettingsViewModel = viewModel(factory = AppViewModels.Fac
 
     val exportLauncher = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("text/csv")) { uri ->
         if (uri != null) vm.exportCsv(uri)
+    }
+    val importLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        if (uri != null) vm.importCsv(uri)
     }
     // Sau khi người dùng trả lời hộp thoại xin quyền: bật nhắc hạn nếu được cấp
     val permissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
@@ -165,6 +174,10 @@ fun SettingsScreen(vm: SettingsViewModel = viewModel(factory = AppViewModels.Fac
                 SettingRow(Icons.Outlined.FileDownload, stringResource(R.string.export_csv), stringResource(R.string.export_csv_desc), onClick = {
                     if (vm.subscriptionCount == 0) scope.launch { snackbar.showSnackbar(exportEmpty) }
                     else exportLauncher.launch(exportFileName)
+                })
+                HorizontalDivider()
+                SettingRow(Icons.Outlined.FileUpload, stringResource(R.string.import_csv), stringResource(R.string.import_csv_desc), onClick = {
+                    importLauncher.launch(CSV_MIME_TYPES)
                 })
                 HorizontalDivider()
                 SettingRow(Icons.Outlined.Share, stringResource(R.string.share_report), stringResource(R.string.share_report_desc), onClick = vm::shareReport)

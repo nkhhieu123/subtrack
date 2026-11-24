@@ -49,13 +49,68 @@ class SubTrackDatabaseTest {
         }
 
     @Test
-    fun freshInstall_hasV4Schema() {
+    fun freshInstall_hasV6Schema() {
         val helper = SubTrackDatabase(context)
         val db = helper.writableDatabase
-        assertEquals(4, userVersion(db))
-        assertTrue(columns(db, "payments").isNotEmpty())
+        assertEquals(6, userVersion(db))
+        assertTrue("custom_category" in columns(db, "payments"))
         val cols = columns(db, "subscriptions")
-        assertTrue("snoozed_until" in cols && "last_notified_on" in cols)
+        assertTrue("snoozed_until" in cols && "last_notified_on" in cols && "custom_category" in cols && "billing_anchor_day" in cols)
+        helper.close()
+    }
+
+    @Test
+    fun anchorDay_savedAndUsedWhenAdvancing() {
+        val helper = SubTrackDatabase(context)
+        val jan31 = LocalDate.of(2026, 1, 31)
+        val id = helper.upsertSubscription(sub(next = jan31))
+        assertEquals(31, helper.getSubscriptions().single().billingAnchorDay)
+        // Lùi về 28/02 (như sau một kỳ) thì ngày neo vẫn là 31
+        helper.updateNextPaymentDate(id, LocalDate.of(2026, 2, 28))
+        val s = helper.getSubscriptions().single()
+        assertEquals(31, s.anchorDay)
+        assertEquals(LocalDate.of(2026, 3, 31), com.nhom4.subtrack.domain.BillingMath.advance(s.nextPaymentDate, s.cycle, s.anchorDay))
+        helper.close()
+    }
+
+    @Test
+    fun customCategory_savedOnlyForOther_andSnapshottedInPayment() {
+        val helper = SubTrackDatabase(context)
+        val id = helper.upsertSubscription(sub().copy(category = Category.OTHER, customCategory = "  Thể thao "))
+        val s = helper.getSubscriptions().single()
+        assertEquals(CategoryKey(Category.OTHER, "Thể thao"), s.categoryKey)
+        helper.insertPayment(payment(id).copy(category = s.category, customCategory = s.customCategory))
+        assertEquals("Thể thao", helper.getPayments().single().categoryKey.customName)
+        // Đổi sang danh mục cố định thì tên tự nhập bị bỏ
+        helper.upsertSubscription(s.copy(category = Category.MUSIC))
+        assertNull(helper.getSubscriptions().single().customCategory)
+        helper.close()
+    }
+
+    @Test
+    fun upgradeFromV4_addsCustomCategoryColumns() {
+        val old = SQLiteDatabase.openOrCreateDatabase(context.getDatabasePath(SubTrackDatabase.DB_NAME), null)
+        old.execSQL(subsV1.replace("updated_at INTEGER NOT NULL)", "updated_at INTEGER NOT NULL, snoozed_until INTEGER, last_notified_on INTEGER)"))
+        old.execSQL("CREATE TABLE tags (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL COLLATE NOCASE UNIQUE, color INTEGER NOT NULL)")
+        old.execSQL("CREATE TABLE subscription_tags (subscription_id INTEGER NOT NULL, tag_id INTEGER NOT NULL, PRIMARY KEY (subscription_id, tag_id))")
+        old.execSQL(
+            "CREATE TABLE payments (id INTEGER PRIMARY KEY AUTOINCREMENT, subscription_id INTEGER, subscription_name TEXT NOT NULL, " +
+                "category TEXT NOT NULL, period_date INTEGER NOT NULL, kind TEXT NOT NULL, paid_date INTEGER, amount REAL, " +
+                "currency TEXT, created_at INTEGER NOT NULL, UNIQUE (subscription_id, period_date))"
+        )
+        old.execSQL(
+            "INSERT INTO subscriptions (id,name,amount,currency,billing_cycle,next_payment_date,category,status,created_at,updated_at) " +
+                "VALUES (7,'Gym',300000,'VND','MONTHLY',${d1.toEpochDay()},'other','ACTIVE',1,1)"
+        )
+        old.execSQL("PRAGMA user_version = 4")
+        old.close()
+
+        val helper = SubTrackDatabase(context)
+        val s = helper.getSubscriptions().single()
+        assertEquals(CategoryKey(Category.OTHER), s.categoryKey)
+        // Ngày neo được điền từ ngày thanh toán đang lưu (d1 = 01/03/2026)
+        assertEquals(1, s.billingAnchorDay)
+        assertTrue("custom_category" in columns(helper.readableDatabase, "payments"))
         helper.close()
     }
 

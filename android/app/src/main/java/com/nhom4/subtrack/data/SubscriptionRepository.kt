@@ -44,6 +44,13 @@ class SubscriptionRepository(private val db: SubTrackDatabase) {
         db.upsertSubscription(sub).also { refresh() }
     }
 
+    /** CREATE nhiều gói trong một giao dịch (dùng khi nhập CSV). Trả về số gói đã lưu. */
+    suspend fun saveAll(subs: List<Subscription>): Int = withContext(Dispatchers.IO) {
+        db.inTransaction { subs.forEach { db.upsertSubscription(it) } }
+        refresh()
+        subs.size
+    }
+
     /** DELETE gói; liên kết tag, nền tảng tự xóa theo khóa ngoại. */
     suspend fun delete(id: Long) = withContext(Dispatchers.IO) {
         db.deleteSubscription(id)
@@ -84,11 +91,12 @@ class SubscriptionRepository(private val db: SubTrackDatabase) {
                 val amount = amountOf(sub)
                 val pid = db.insertPayment(
                     Payment(
-                        subscriptionId = id, subscriptionName = sub.name, category = sub.category, periodDate = period,
+                        subscriptionId = id, subscriptionName = sub.name, category = sub.category,
+                        customCategory = sub.categoryKey.customName, periodDate = period,
                         kind = kind, paidDate = paidDate, amount = amount, currency = if (amount != null) sub.currency else null,
                     )
                 )
-                db.updateNextPaymentDate(id, BillingMath.advance(period, sub.cycle))
+                db.updateNextPaymentDate(id, BillingMath.advance(period, sub.cycle, sub.anchorDay))
                 db.setReminderState(id, null, null)
                 token(sub, pid)
             }
@@ -121,6 +129,7 @@ class SubscriptionRepository(private val db: SubTrackDatabase) {
         val sub = db.getSubscriptions().firstOrNull { it.id == id } ?: return@withContext null
         db.inTransaction {
             db.setStatusAndDate(id, SubscriptionStatus.ACTIVE, next)
+            db.setAnchorDay(id, BillingMath.anchorFor(next, sub.anchorDay))
             db.setReminderState(id, null, null)
         }
         token(sub).also { refresh() }

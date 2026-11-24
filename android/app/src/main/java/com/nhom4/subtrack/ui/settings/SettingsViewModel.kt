@@ -12,13 +12,20 @@ import com.nhom4.subtrack.data.Currency
 import com.nhom4.subtrack.data.Platform
 import com.nhom4.subtrack.data.Subscription
 import com.nhom4.subtrack.data.SubscriptionStatus
+import com.nhom4.subtrack.data.Tag
 import com.nhom4.subtrack.domain.BillingMath
+import com.nhom4.subtrack.domain.CsvImportResult
+import com.nhom4.subtrack.domain.CsvImporter
+import com.nhom4.subtrack.domain.CsvVocabulary
 import com.nhom4.subtrack.domain.CsvWriter
+import com.nhom4.subtrack.domain.ImportProblem
 import com.nhom4.subtrack.reminder.Reminders
+import com.nhom4.subtrack.ui.categoryName
 import com.nhom4.subtrack.ui.formatAmountInput
 import com.nhom4.subtrack.ui.formatDate
 import com.nhom4.subtrack.ui.formatMoney
 import com.nhom4.subtrack.ui.label
+import com.nhom4.subtrack.ui.organize.TAG_COLORS
 import com.nhom4.subtrack.ui.reports.ReportsViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.Channel
@@ -75,7 +82,7 @@ class SettingsViewModel(private val app: SubTrackApp) : ViewModel() {
                         s.currency.code,
                         app.getString(s.cycle.label),
                         formatDate(s.nextPaymentDate),
-                        app.getString(s.category.label),
+                        app.categoryName(s.categoryKey),
                         app.getString(s.status.label),
                         s.remindDaysBefore?.toString().orEmpty(),
                         s.tagIds.mapNotNull { tags[it]?.name }.joinToString("; "),
@@ -97,6 +104,74 @@ class SettingsViewModel(private val app: SubTrackApp) : ViewModel() {
             result.onSuccess { n -> _events.send(SettingsEvent.Message(app.resources.getQuantityString(R.plurals.export_done, n, n))) }
                 .onFailure { msg(R.string.export_failed) }
         }
+    }
+
+    /**
+     * Nhập gói từ file CSV (cùng định dạng file xuất). Bỏ qua gói trùng tên với gói đã có hoặc
+     * trùng trong file; tag chưa có thì tạo mới. Báo kết quả bằng snackbar.
+     */
+    fun importCsv(uri: Uri) {
+        viewModelScope.launch {
+            val result = runCatching {
+                val text = withContext(Dispatchers.IO) {
+                    app.contentResolver.openInputStream(uri)!!.use { it.readBytes().toString(Charsets.UTF_8) }
+                }
+                if (repo.subscriptions.value == null) repo.refresh()
+                CsvImporter(vocabulary(), settings.value.defaultCurrency).parse(text)
+            }.getOrElse {
+                msg(R.string.import_failed)
+                return@launch
+            }
+            if (result !is CsvImportResult.Parsed) {
+                msg(R.string.import_bad_format)
+                return@launch
+            }
+            val taken = repo.subscriptions.value.orEmpty().map { it.name.lowercase() }.toMutableSet()
+            val fresh = result.rows.filter { taken.add(it.sub.name.lowercase()) }
+            val duplicates = result.rows.size - fresh.size
+
+            val saved = runCatching {
+                // Tạo tag còn thiếu rồi gắn id vào gói
+                val existing = repo.tags.value.map { it.name.lowercase() }.toSet()
+                fresh.flatMap { it.tagNames }.distinctBy { it.lowercase() }.filter { it.lowercase() !in existing }
+                    .forEachIndexed { i, name -> repo.saveTag(Tag(name = name, color = TAG_COLORS[i % TAG_COLORS.size])) }
+                val tagIds = repo.tags.value.associate { it.name.lowercase() to it.id }
+                repo.saveAll(fresh.map { row -> row.sub.copy(tagIds = row.tagNames.mapNotNull { tagIds[it.lowercase()] }) })
+            }.getOrElse {
+                msg(R.string.save_failed)
+                return@launch
+            }
+            if (saved > 0 && settings.value.remindersEnabled) Reminders.checkNow(app)
+
+            val text = buildString {
+                append(app.resources.getQuantityString(R.plurals.import_done, saved, saved))
+                if (duplicates > 0) append(app.resources.getQuantityString(R.plurals.import_duplicates, duplicates, duplicates))
+                result.errors.firstOrNull()?.let { first ->
+                    val n = result.errors.size
+                    append(app.resources.getQuantityString(R.plurals.import_errors, n, n, first.line, app.getString(problemText(first.problem))))
+                }
+            }
+            _events.send(SettingsEvent.Message(text))
+        }
+    }
+
+    /** Nhãn hiển thị (tiếng Việt) và mã (tiếng Anh) để hiểu nội dung các ô trong file. */
+    private fun vocabulary() = CsvVocabulary(
+        headers = app.getString(R.string.csv_header).split(','),
+        cycles = CsvVocabulary.labels(BillingCycle.entries, { app.getString(it.label) }),
+        categories = CsvVocabulary.labels(Category.entries, { app.getString(it.label) }, { it.key }),
+        statuses = CsvVocabulary.labels(SubscriptionStatus.entries, { app.getString(it.label) }),
+        platforms = CsvVocabulary.labels(Platform.entries, { app.getString(it.label) }, { it.key }),
+        otherPlatformsNote = app.getString(R.string.import_other_platforms_note),
+    )
+
+    private fun problemText(p: ImportProblem): Int = when (p) {
+        ImportProblem.NAME -> R.string.import_problem_name
+        ImportProblem.AMOUNT -> R.string.import_problem_amount
+        ImportProblem.CURRENCY -> R.string.import_problem_currency
+        ImportProblem.CYCLE -> R.string.import_problem_cycle
+        ImportProblem.DATE -> R.string.import_problem_date
+        ImportProblem.STATUS -> R.string.import_problem_status
     }
 
     fun shareReport() {

@@ -107,6 +107,10 @@
     <string name="field_amount_placeholder_vnd">Ví dụ: 260000</string>
     <string name="field_amount_placeholder_other">Ví dụ: 9.99</string>
     <string name="field_currency">Tiền tệ</string>
+    <string name="field_custom_category">Tên danh mục</string>
+    <string name="field_custom_category_placeholder">Ví dụ: Thể thao, Sức khỏe</string>
+    <string name="err_custom_category_required">Nhập tên danh mục</string>
+    <string name="err_custom_category_too_long">Tên danh mục tối đa 30 ký tự</string>
     <string name="field_cycle">Chu kỳ thanh toán</string>
     <string name="field_next_date">Ngày thanh toán tiếp theo</string>
     <string name="field_category">Danh mục</string>
@@ -215,6 +219,26 @@
         <item quantity="other">Đã xuất %d gói ra file CSV</item>
     </plurals>
     <string name="export_failed">Xuất file thất bại</string>
+    <string name="import_csv">Nhập danh sách từ CSV</string>
+    <string name="import_csv_desc">Thêm nhiều gói cùng lúc từ file CSV (cùng định dạng file xuất)</string>
+    <string name="import_failed">Không đọc được file</string>
+    <string name="import_bad_format">File không đúng định dạng: cần có cột "Tên dịch vụ" và "Số tiền" ở dòng đầu</string>
+    <plurals name="import_done">
+        <item quantity="other">Đã nhập %d gói</item>
+    </plurals>
+    <plurals name="import_duplicates">
+        <item quantity="other">, bỏ qua %d gói trùng tên</item>
+    </plurals>
+    <plurals name="import_errors">
+        <item quantity="other">, %1$d dòng lỗi (dòng %2$d: %3$s)</item>
+    </plurals>
+    <string name="import_problem_name">thiếu tên hoặc tên quá 60 ký tự</string>
+    <string name="import_problem_amount">số tiền không hợp lệ</string>
+    <string name="import_problem_currency">tiền tệ chỉ nhận VND, USD, EUR</string>
+    <string name="import_problem_cycle">chu kỳ không hợp lệ</string>
+    <string name="import_problem_date">ngày không hợp lệ (dùng dd/MM/yyyy)</string>
+    <string name="import_problem_status">trạng thái không hợp lệ</string>
+    <string name="import_other_platforms_note">Nền tảng khác: %s</string>
     <string name="export_empty">Chưa có gói nào để xuất</string>
     <string name="export_file_name">subtrack-goi-dang-ky.csv</string>
     <string name="share_report">Chia sẻ báo cáo chi phí</string>

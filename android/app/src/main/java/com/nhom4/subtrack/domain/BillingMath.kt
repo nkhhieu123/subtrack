@@ -32,19 +32,38 @@ object BillingMath {
         subs.filter { it.status == SubscriptionStatus.ACTIVE && it.currency == currency }
             .sumOf { monthlyCost(it.amount, it.cycle) }
 
-    fun advance(date: LocalDate, cycle: BillingCycle): LocalDate = when (cycle) {
-        BillingCycle.WEEKLY -> date.plusWeeks(1)
-        BillingCycle.MONTHLY -> date.plusMonths(1)
-        BillingCycle.QUARTERLY -> date.plusMonths(3)
-        BillingCycle.YEARLY -> date.plusYears(1)
+    /**
+     * Kỳ kế tiếp sau [date]. Với chu kỳ tháng/quý/năm, [anchorDay] là ngày neo gốc: kỳ mới lấy
+     * đúng ngày neo, tháng nào thiếu ngày thì lùi về ngày cuối tháng
+     * (neo 31: 31/01 → 28/02 → 31/03 → 30/04). null = giữ hành vi cũ, cộng tháng từ [date].
+     */
+    fun advance(date: LocalDate, cycle: BillingCycle, anchorDay: Int? = null): LocalDate {
+        val next = when (cycle) {
+            BillingCycle.WEEKLY -> return date.plusWeeks(1)
+            BillingCycle.MONTHLY -> date.plusMonths(1)
+            BillingCycle.QUARTERLY -> date.plusMonths(3)
+            BillingCycle.YEARLY -> date.plusYears(1)
+        }
+        return if (anchorDay == null) next else onAnchor(next, anchorDay)
     }
 
-    /** Ngày thanh toán đầu tiên không trước [today], tính từ [date] theo chu kỳ. */
-    fun nextOnOrAfter(date: LocalDate, cycle: BillingCycle, today: LocalDate): LocalDate {
+    /** Đưa [date] về ngày neo trong cùng tháng (lùi về cuối tháng nếu tháng ngắn hơn). */
+    fun onAnchor(date: LocalDate, anchorDay: Int): LocalDate =
+        date.withDayOfMonth(anchorDay.coerceIn(1, 31).coerceAtMost(date.lengthOfMonth()))
+
+    /**
+     * Ngày neo cần lưu khi người dùng chọn [date] làm kỳ tới. Nếu [date] chính là ngày neo cũ
+     * đã bị lùi về cuối tháng (neo 31, chọn 28/02) thì giữ neo cũ; còn lại neo theo ngày đã chọn.
+     */
+    fun anchorFor(date: LocalDate, previousAnchor: Int?): Int =
+        if (previousAnchor != null && onAnchor(date, previousAnchor) == date) previousAnchor else date.dayOfMonth
+
+    /** Ngày thanh toán đầu tiên không trước [today], tính từ [date] theo chu kỳ và ngày neo. */
+    fun nextOnOrAfter(date: LocalDate, cycle: BillingCycle, today: LocalDate, anchorDay: Int? = null): LocalDate {
         var d = date
         var guard = 0
         while (d.isBefore(today) && guard < 10_000) {
-            d = advance(d, cycle)
+            d = advance(d, cycle, anchorDay)
             guard++
         }
         return d
