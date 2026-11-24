@@ -218,8 +218,8 @@
     <string name="test_notification_sent">Đã gửi thông báo thử</string>
     <string name="notif_permission_denied">Bạn chưa cấp quyền thông báo. Hãy bật trong phần Cài đặt của Android.</string>
     <string name="settings_data">Dữ liệu</string>
-    <string name="export_csv">Xuất danh sách ra CSV</string>
-    <string name="export_csv_desc">Lưu file để sao lưu hoặc mở bằng Excel</string>
+    <string name="export_csv">Xuất ra tệp CSV</string>
+    <string name="export_csv_desc">Gồm gói, tag và lịch sử thanh toán; mở được bằng Excel, nhập lại được</string>
     <plurals name="export_done">
         <item quantity="other">Đã xuất %d gói ra file CSV</item>
     </plurals>
@@ -238,9 +238,9 @@
     <string name="add_demo_data_desc">Dữ liệu minh họa có ghi chú “mẫu”, có thể xóa bất cứ lúc nào</string>
     <string name="demo_added">Đã thêm 5 gói mẫu</string>
     <string name="demo_note">Gói mẫu để demo</string>
-    <string name="clear_data">Xóa toàn bộ dữ liệu</string>
-    <string name="clear_confirm_title">Xóa toàn bộ dữ liệu?</string>
-    <string name="clear_confirm_body">Mọi gói đăng ký, tag và lịch sử chi trả sẽ bị xóa. Không thể hoàn tác.</string>
+    <string name="clear_data">Xóa dữ liệu của bộ đang dùng</string>
+    <string name="clear_confirm_title">Xóa dữ liệu của bộ “%1$s”?</string>
+    <string name="clear_confirm_body">Mọi gói đăng ký, tag và lịch sử chi trả của bộ này sẽ bị xóa. Các bộ dữ liệu khác không bị ảnh hưởng. Không thể hoàn tác.</string>
     <string name="cleared">Đã xóa toàn bộ dữ liệu</string>
     <string name="settings_about">Giới thiệu</string>
     <string name="about_version">Phiên bản %1$s</string>
@@ -263,7 +263,6 @@
     <string name="notif_test_body">Nhắc hạn thanh toán đang hoạt động trên máy của bạn.</string>
 
     <!-- File CSV -->
-    <string name="csv_header">Tên dịch vụ,Số tiền,Tiền tệ,Chu kỳ,Ngày thanh toán tiếp theo,Danh mục,Trạng thái,Nhắc trước (ngày),Tag,Nền tảng,Liên kết quản lý,Ghi chú</string>
 
     <!-- Màn hình xem gói -->
     <string name="due_pending">Chờ xác nhận</string>
@@ -290,4 +289,54 @@
     <string name="msg_snoozed">Sẽ nhắc lại sau</string>
     <string name="msg_cancelled">Đã hủy gói</string>
     <string name="msg_reactivated">Đã kích hoạt lại gói</string>
+    <!-- Bộ dữ liệu, nhập/xuất CSV và QR -->
+    <string name="dataset_main">Dữ liệu của tôi</string>
+    <string name="datasets_title">Bộ dữ liệu</string>
+    <string name="datasets_row_desc">Đang dùng: %1$s</string>
+    <string name="datasets_hint">Mỗi bộ là một kho dữ liệu riêng. Nhập dữ liệu luôn tạo bộ mới nên dữ liệu đang có không bị ghi đè.</string>
+    <string name="dataset_active">Đang dùng</string>
+    <string name="dataset_meta_main">%1$d gói · dữ liệu gốc</string>
+    <string name="dataset_meta">%1$d gói · tạo lúc %2$s</string>
+    <string name="dataset_use">Dùng</string>
+    <string name="dataset_rename">Đổi tên</string>
+    <string name="dataset_name_label">Tên bộ dữ liệu</string>
+    <string name="dataset_delete_title">Xóa bộ “%1$s”?</string>
+    <string name="dataset_delete_body">Toàn bộ gói, tag và lịch sử của bộ này sẽ bị xóa. Không thể hoàn tác.</string>
+    <string name="dataset_switched">Đã chuyển sang “%1$s”</string>
+    <string name="dataset_banner">Đang xem bộ dữ liệu: %1$s</string>
+    <string name="export_qr">Xuất mã QR</string>
+    <string name="export_qr_desc">Chuyển dữ liệu sang máy khác bằng camera hoặc ảnh GIF</string>
+    <string name="import_csv">Nhập từ tệp CSV</string>
+    <string name="import_csv_desc">Tạo bộ dữ liệu mới từ tệp đã xuất</string>
+    <string name="scan_qr">Quét mã QR</string>
+    <string name="scan_qr_desc">Nhận dữ liệu từ máy khác, lưu thành bộ dữ liệu mới</string>
+    <string name="import_title">Nhập dữ liệu</string>
+    <string name="import_summary">%1$d gói, %2$d tag, %3$d dòng lịch sử thanh toán</string>
+    <string name="import_skipped">Bỏ qua %1$d dòng không đọc được</string>
+    <string name="import_default_name">Nhập %1$s</string>
+    <string name="import_save_use">Lưu và dùng</string>
+    <string name="import_save_only">Chỉ lưu</string>
+    <string name="import_failed">Không đọc được dữ liệu: không có gói hợp lệ</string>
+    <string name="import_saved">Đã lưu bộ “%1$s”</string>
+    <string name="import_saved_used">Đã lưu và chuyển sang bộ “%1$s”</string>
+    <string name="qr_export_title">Mã QR dữ liệu</string>
+    <string name="qr_export_hint">Trên máy kia: Cài đặt → Quét mã QR, rồi hướng camera vào đây và giữ yên tới khi nhận đủ khung, hoặc lưu thành ảnh GIF rồi chọn ảnh đó ở máy kia.</string>
+    <string name="qr_export_summary">%1$s · %2$d gói, %3$d dòng lịch sử</string>
+    <string name="qr_frame">Khung %1$d/%2$d</string>
+    <string name="qr_pause">Tạm dừng</string>
+    <string name="qr_play">Tiếp tục</string>
+    <string name="qr_prev">Khung trước</string>
+    <string name="qr_next">Khung sau</string>
+    <string name="qr_from_images">Chọn ảnh mã QR (GIF hoặc ảnh chụp)</string>
+    <string name="qr_save_gif">Lưu thành ảnh GIF</string>
+    <string name="qr_gif_saved">Đã lưu ảnh GIF mã QR</string>
+    <string name="qr_gif_failed">Không lưu được ảnh GIF</string>
+    <string name="qr_images_none">Không tìm thấy mã QR SubTrack trong ảnh đã chọn</string>
+    <string name="qr_images_incomplete">Ảnh chưa đủ khung: đã nhận %1$d/%2$d, hãy chọn thêm ảnh còn thiếu</string>
+    <string name="qr_scan_title">Quét mã QR</string>
+    <string name="qr_scan_hint">Hướng camera vào mã QR SubTrack trên máy kia</string>
+    <string name="qr_progress">Đã nhận %1$d/%2$d khung</string>
+    <string name="qr_corrupt">Mã bị lỗi, đang quét lại từ đầu</string>
+    <string name="camera_permission_needed">Cần quyền camera để quét mã QR</string>
+    <string name="camera_grant">Cấp quyền camera</string>
 </resources>

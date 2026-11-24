@@ -47,6 +47,7 @@ data class ListUiState(
 )
 
 class ListViewModel(private val app: SubTrackApp) : ViewModel() {
+    val datasets = app.datasets.state
     private val repo = app.repository
     private val _filters = MutableStateFlow(ListFilters())
     val filters: StateFlow<ListFilters> = _filters

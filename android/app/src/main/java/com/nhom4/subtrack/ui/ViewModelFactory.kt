@@ -6,7 +6,10 @@ import androidx.lifecycle.viewmodel.CreationExtras
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import com.nhom4.subtrack.SubTrackApp
+import com.nhom4.subtrack.ui.dataset.DatasetsViewModel
 import com.nhom4.subtrack.ui.detail.DetailViewModel
+import com.nhom4.subtrack.ui.qr.QrExportViewModel
+import com.nhom4.subtrack.ui.qr.QrScanViewModel
 import com.nhom4.subtrack.ui.edit.EditViewModel
 import com.nhom4.subtrack.ui.list.ListViewModel
 import com.nhom4.subtrack.ui.organize.OrganizeViewModel
@@ -21,6 +24,9 @@ object AppViewModels {
         initializer { OrganizeViewModel(app()) }
         initializer { ReportsViewModel(app()) }
         initializer { SettingsViewModel(app()) }
+        initializer { DatasetsViewModel(app()) }
+        initializer { QrExportViewModel(app()) }
+        initializer { QrScanViewModel(app()) }
     }
 
     fun edit(id: Long): ViewModelProvider.Factory = viewModelFactory {

@@ -21,6 +21,10 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.DeleteForever
 import androidx.compose.material.icons.outlined.FileDownload
+import androidx.compose.material.icons.outlined.FileUpload
+import androidx.compose.material.icons.outlined.Layers
+import androidx.compose.material.icons.outlined.QrCode2
+import androidx.compose.material.icons.outlined.QrCodeScanner
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.LibraryAdd
 import androidx.compose.material.icons.outlined.NotificationsActive
@@ -63,15 +67,23 @@ import com.nhom4.subtrack.R
 import com.nhom4.subtrack.data.Currency
 import com.nhom4.subtrack.reminder.Reminders
 import com.nhom4.subtrack.ui.AppViewModels
+import com.nhom4.subtrack.ui.ImportPreviewDialog
 import com.nhom4.subtrack.ui.SectionHeader
 import com.nhom4.subtrack.ui.SelectField
 import com.nhom4.subtrack.ui.label
 import kotlinx.coroutines.launch
 
 @Composable
-fun SettingsScreen(vm: SettingsViewModel = viewModel(factory = AppViewModels.Factory)) {
+fun SettingsScreen(
+    onOpenDatasets: () -> Unit = {},
+    onExportQr: () -> Unit = {},
+    onScanQr: () -> Unit = {},
+    vm: SettingsViewModel = viewModel(factory = AppViewModels.Factory),
+) {
     val context = LocalContext.current
     val settings by vm.settings.collectAsStateWithLifecycle()
+    val datasets by vm.datasets.collectAsStateWithLifecycle()
+    val preview by vm.preview.collectAsStateWithLifecycle()
     val snackbar = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
     var confirmClear by remember { mutableStateOf(false) }
@@ -99,6 +111,10 @@ fun SettingsScreen(vm: SettingsViewModel = viewModel(factory = AppViewModels.Fac
 
     val exportLauncher = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("text/csv")) { uri ->
         if (uri != null) vm.exportCsv(uri)
+    }
+    // Nhiều trình quản lý tệp báo CSV là octet-stream / ms-excel nên nhận rộng
+    val importLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        if (uri != null) vm.importCsv(uri)
     }
     // Sau khi người dùng trả lời hộp thoại xin quyền: bật nhắc hạn nếu được cấp
     val permissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
@@ -162,10 +178,25 @@ fun SettingsScreen(vm: SettingsViewModel = viewModel(factory = AppViewModels.Fac
 
             SectionHeader(stringResource(R.string.settings_data))
             Group {
+                SettingRow(
+                    Icons.Outlined.Layers, stringResource(R.string.datasets_title),
+                    stringResource(R.string.datasets_row_desc, datasets.active.name), onClick = onOpenDatasets,
+                )
+                HorizontalDivider()
                 SettingRow(Icons.Outlined.FileDownload, stringResource(R.string.export_csv), stringResource(R.string.export_csv_desc), onClick = {
                     if (vm.subscriptionCount == 0) scope.launch { snackbar.showSnackbar(exportEmpty) }
                     else exportLauncher.launch(exportFileName)
                 })
+                HorizontalDivider()
+                SettingRow(Icons.Outlined.QrCode2, stringResource(R.string.export_qr), stringResource(R.string.export_qr_desc), onClick = {
+                    if (vm.subscriptionCount == 0) scope.launch { snackbar.showSnackbar(exportEmpty) } else onExportQr()
+                })
+                HorizontalDivider()
+                SettingRow(Icons.Outlined.FileUpload, stringResource(R.string.import_csv), stringResource(R.string.import_csv_desc), onClick = {
+                    importLauncher.launch(arrayOf("text/*", "application/csv", "application/vnd.ms-excel", "application/octet-stream"))
+                })
+                HorizontalDivider()
+                SettingRow(Icons.Outlined.QrCodeScanner, stringResource(R.string.scan_qr), stringResource(R.string.scan_qr_desc), onClick = onScanQr)
                 HorizontalDivider()
                 SettingRow(Icons.Outlined.Share, stringResource(R.string.share_report), stringResource(R.string.share_report_desc), onClick = vm::shareReport)
                 HorizontalDivider()
@@ -194,7 +225,7 @@ fun SettingsScreen(vm: SettingsViewModel = viewModel(factory = AppViewModels.Fac
     if (confirmClear) {
         AlertDialog(
             onDismissRequest = { confirmClear = false },
-            title = { Text(stringResource(R.string.clear_confirm_title)) },
+            title = { Text(stringResource(R.string.clear_confirm_title, datasets.active.name)) },
             text = { Text(stringResource(R.string.clear_confirm_body)) },
             confirmButton = {
                 TextButton(onClick = { confirmClear = false; vm.clearAll() }) {
@@ -204,6 +235,7 @@ fun SettingsScreen(vm: SettingsViewModel = viewModel(factory = AppViewModels.Fac
             dismissButton = { TextButton(onClick = { confirmClear = false }) { Text(stringResource(R.string.action_cancel)) } },
         )
     }
+    preview?.let { ImportPreviewDialog(it, onSave = vm::saveImport, onCancel = vm::cancelImport) }
 }
 
 @Composable

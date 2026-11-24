@@ -18,8 +18,8 @@ import java.time.LocalDate
  * - subscription_tags: bảng nối N–N giữa gói và tag.
  * - payments: lịch sử chi trả (đã trả / bỏ qua) theo từng kỳ của gói.
  */
-class SubTrackDatabase(context: Context) :
-    SQLiteOpenHelper(context, DB_NAME, null, DB_VERSION) {
+class SubTrackDatabase(context: Context, name: String = DB_NAME) :
+    SQLiteOpenHelper(context, name, null, DB_VERSION) {
 
     /**
      * Bật khóa ngoại sau khi tạo/nâng cấp xong. Không bật trong onConfigure vì khi nâng cấp
@@ -235,6 +235,24 @@ class SubTrackDatabase(context: Context) :
         } finally {
             db.endTransaction()
         }
+    }
+
+    /**
+     * Ghi cả bộ dữ liệu trong một giao dịch (lỗi thì không ghi gì). Id trong [d] chỉ dùng để nối
+     * gói ↔ tag ↔ lịch sử; dòng mới nhận id mới.
+     */
+    fun importAll(d: com.nhom4.subtrack.domain.Dataset) = inTransaction {
+        val db = writableDatabase
+        val tagIds = d.tags.associate { t ->
+            t.id to db.insertOrThrow("tags", null, ContentValues().apply {
+                put("name", t.name)
+                put("color", t.color)
+            })
+        }
+        val subIds = d.subscriptions.associate { s ->
+            s.id to upsertSubscription(s.copy(id = 0, tagIds = s.tagIds.mapNotNull { tagIds[it] }))
+        }
+        d.payments.forEach { p -> insertPayment(p.copy(id = 0, subscriptionId = p.subscriptionId?.let { subIds[it] })) }
     }
 
     private fun Cursor.toPayment(): Payment {

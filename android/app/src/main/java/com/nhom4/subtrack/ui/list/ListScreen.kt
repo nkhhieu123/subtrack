@@ -93,6 +93,7 @@ fun ListScreen(
 ) {
     val state by vm.state.collectAsStateWithLifecycle()
     val filters by vm.filters.collectAsStateWithLifecycle()
+    val datasets by vm.datasets.collectAsStateWithLifecycle()
     val scroll = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
 
     Scaffold(
@@ -124,6 +125,14 @@ fun ListScreen(
                 contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = 96.dp),
                 verticalArrangement = Arrangement.spacedBy(10.dp),
             ) {
+                // Nhắc rõ khi đang xem bộ dữ liệu nhập vào, không phải dữ liệu gốc
+                if (!datasets.active.isMain) item {
+                    Text(
+                        stringResource(R.string.dataset_banner, datasets.active.name),
+                        style = MaterialTheme.typography.labelLarge,
+                        color = MaterialTheme.colorScheme.primary,
+                    )
+                }
                 if (state.totalCount > 0) {
                     item { SummaryCard(state) }
                     item {

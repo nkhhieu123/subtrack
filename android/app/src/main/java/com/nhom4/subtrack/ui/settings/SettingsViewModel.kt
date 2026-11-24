@@ -13,16 +13,21 @@ import com.nhom4.subtrack.data.Platform
 import com.nhom4.subtrack.data.Subscription
 import com.nhom4.subtrack.data.SubscriptionStatus
 import com.nhom4.subtrack.domain.BillingMath
-import com.nhom4.subtrack.domain.CsvWriter
+import com.nhom4.subtrack.data.DatasetsState
+import com.nhom4.subtrack.domain.DatasetCsv
+import com.nhom4.subtrack.ui.ImportPreview
+import com.nhom4.subtrack.ui.importPreview
+import com.nhom4.subtrack.ui.saveImport
 import com.nhom4.subtrack.reminder.Reminders
-import com.nhom4.subtrack.ui.formatAmountInput
 import com.nhom4.subtrack.ui.formatDate
 import com.nhom4.subtrack.ui.formatMoney
 import com.nhom4.subtrack.ui.label
 import com.nhom4.subtrack.ui.reports.ReportsViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -63,39 +68,51 @@ class SettingsViewModel(private val app: SubTrackApp) : ViewModel() {
         if (Reminders.notifyTest(app)) msg(R.string.test_notification_sent) else msg(R.string.notif_permission_denied)
     }
 
+    private val csv = DatasetCsv(app::getString)
+    val datasets: StateFlow<DatasetsState> = app.datasets.state
+
+    private val _preview = MutableStateFlow<ImportPreview?>(null)
+    val preview: StateFlow<ImportPreview?> = _preview.asStateFlow()
+
     fun exportCsv(uri: Uri) {
         viewModelScope.launch {
-            val subs = repo.subscriptions.value.orEmpty()
-            val tags = repo.tags.value.associateBy { it.id }
             val result = runCatching {
-                val rows = subs.sortedBy { it.name.lowercase() }.map { s ->
-                    listOf(
-                        s.name,
-                        formatAmountInput(s.amount, s.currency),
-                        s.currency.code,
-                        app.getString(s.cycle.label),
-                        formatDate(s.nextPaymentDate),
-                        app.getString(s.category.label),
-                        app.getString(s.status.label),
-                        s.remindDaysBefore?.toString().orEmpty(),
-                        s.tagIds.mapNotNull { tags[it]?.name }.joinToString("; "),
-                        s.platforms.joinToString("; ") { app.getString(it.label) },
-                        s.managementUrl.orEmpty(),
-                        s.notes.orEmpty(),
-                    )
-                }
-                val csv = CsvWriter.build(app.getString(R.string.csv_header), rows)
+                val data = repo.snapshot()
                 withContext(Dispatchers.IO) {
                     app.contentResolver.openOutputStream(uri, "wt")!!.use { out ->
                         // BOM để Excel nhận đúng tiếng Việt UTF-8
                         out.write(byteArrayOf(0xEF.toByte(), 0xBB.toByte(), 0xBF.toByte()))
-                        out.write(csv.toByteArray(Charsets.UTF_8))
+                        out.write(csv.write(data).toByteArray(Charsets.UTF_8))
                     }
                 }
-                rows.size
+                data.subscriptions.size
             }
             result.onSuccess { n -> _events.send(SettingsEvent.Message(app.resources.getQuantityString(R.plurals.export_done, n, n))) }
                 .onFailure { msg(R.string.export_failed) }
+        }
+    }
+
+    fun importCsv(uri: Uri) {
+        viewModelScope.launch {
+            runCatching {
+                val text = withContext(Dispatchers.IO) {
+                    app.contentResolver.openInputStream(uri)!!.use { String(it.readBytes(), Charsets.UTF_8) }
+                }
+                csv.read(text)
+            }.onSuccess { _preview.value = app.importPreview(it) }
+                .onFailure { msg(R.string.import_failed) }
+        }
+    }
+
+    fun cancelImport() { _preview.value = null }
+
+    fun saveImport(name: String, activate: Boolean) {
+        val p = _preview.value ?: return
+        _preview.value = null
+        viewModelScope.launch {
+            runCatching { app.saveImport(p, name, activate) }
+                .onSuccess { _events.send(SettingsEvent.Message(it)) }
+                .onFailure { msg(R.string.save_failed) }
         }
     }
 
