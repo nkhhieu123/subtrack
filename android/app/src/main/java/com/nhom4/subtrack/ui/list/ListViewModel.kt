@@ -9,6 +9,7 @@ import com.nhom4.subtrack.data.Subscription
 import com.nhom4.subtrack.data.SubscriptionStatus
 import com.nhom4.subtrack.data.Tag
 import com.nhom4.subtrack.domain.BillingMath
+import com.nhom4.subtrack.domain.TextSearch
 import com.nhom4.subtrack.ui.label
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -64,7 +65,7 @@ class ListViewModel(private val app: SubTrackApp) : ViewModel() {
         ListUiState(
             loading = false,
             totalCount = subs.size,
-            items = subs.filter { matches(it, filters, tagMap) }.sortedWith(comparator(filters.sort)),
+            items = subs.filter { matches(it, filters, tagMap) }.sortedWith(comparator(filters.sort, settings.defaultCurrency, perUsd)),
             tags = tagMap,
             currency = settings.defaultCurrency,
             monthlyTotal = BillingMath.totalMonthly(subs, settings.defaultCurrency, perUsd),
@@ -108,12 +109,15 @@ class ListViewModel(private val app: SubTrackApp) : ViewModel() {
             sub.platforms.mapTo(this) { app.getString(it.label) }
             add(app.getString(sub.category.label))
         }
-        return haystack.any { it.contains(q, ignoreCase = true) }
+        return haystack.any { TextSearch.matches(it, q) }
     }
 
-    private fun comparator(sort: SortOrder): Comparator<Subscription> = when (sort) {
-        SortOrder.DATE -> compareBy<Subscription> { it.status != SubscriptionStatus.ACTIVE }.thenBy { it.nextPaymentDate }
-        SortOrder.PRICE -> compareByDescending<Subscription> { BillingMath.monthlyCost(it.amount, it.cycle) }
-        SortOrder.NAME -> compareBy(String.CASE_INSENSITIVE_ORDER) { it.name }
+    companion object {
+        /** Sắp theo chi phí tháng đã quy về [currency]; gói chưa quy đổi được (thiếu tỷ giá) xếp cuối. */
+        fun comparator(sort: SortOrder, currency: Currency, perUsd: Map<Currency, Double>?): Comparator<Subscription> = when (sort) {
+            SortOrder.DATE -> compareBy<Subscription> { it.status != SubscriptionStatus.ACTIVE }.thenBy { it.nextPaymentDate }
+            SortOrder.PRICE -> compareByDescending<Subscription> { BillingMath.monthlyIn(it, currency, perUsd) ?: -1.0 }
+            SortOrder.NAME -> compareBy(String.CASE_INSENSITIVE_ORDER) { it.name }
+        }
     }
 }

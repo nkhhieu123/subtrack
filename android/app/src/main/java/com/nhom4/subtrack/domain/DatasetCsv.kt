@@ -101,12 +101,17 @@ class DatasetCsv(private val text: (Int) -> String) {
             val ok = runCatching {
                 when (section) {
                     SEC_SUBS -> {
-                        val name = cell(COL_NAME).ifEmpty { error("thiếu tên") }
+                        // Cùng quy tắc với form Sửa gói, để gói nhập vào luôn mở ra lưu lại được
+                        val name = cell(COL_NAME).trim().ifEmpty { error("thiếu tên") }
+                        require(name.length <= BillingMath.MAX_NAME_LENGTH) { "tên quá dài" }
+                        val url = cell(COL_URL).trim()
+                        require(url.isEmpty() || BillingMath.isValidUrl(url)) { "liên kết" }
                         val currency = Currency.entries.first { it.code.equals(cell(COL_CURRENCY), true) }
+                        val amount = BillingMath.parseAmount(cell(COL_AMOUNT), currency)?.takeIf { it > 0 } ?: error("số tiền")
                         val code = cell(COL_ID).toLongOrNull()?.takeIf { it > 0 && it !in subs } ?: (-nextId++)
                         subs[code] = Subscription(
                             id = code, name = name,
-                            amount = BillingMath.parseAmount(cell(COL_AMOUNT), currency) ?: error("số tiền"),
+                            amount = amount,
                             currency = currency,
                             cycle = match(cell(COL_CYCLE), BillingCycle.entries) { it.label }!!,
                             nextPaymentDate = date(cell(COL_NEXT))!!,
@@ -116,7 +121,7 @@ class DatasetCsv(private val text: (Int) -> String) {
                             tagIds = split(cell(COL_TAGS)).map { tagId(it) }.distinct(),
                             platforms = split(cell(COL_PLATFORMS))
                                 .mapNotNull { v -> match(v, Platform.entries, { it.key }) { it.label } }.distinct(),
-                            managementUrl = cell(COL_URL).ifEmpty { null },
+                            managementUrl = url.ifEmpty { null },
                             notes = cell(COL_NOTES).ifEmpty { null },
                         )
                     }

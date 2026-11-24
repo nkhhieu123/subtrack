@@ -145,6 +145,7 @@
     <string name="err_name_too_long">Tên tối đa 60 ký tự</string>
     <string name="err_amount_required">Vui lòng nhập số tiền</string>
     <string name="err_amount_invalid">Số tiền không hợp lệ. Dấu chấm tách nghìn, dấu phẩy trước phần lẻ (ví dụ 1.234,50)</string>
+    <string name="err_amount_zero">Số tiền phải lớn hơn 0</string>
     <string name="err_url_invalid">Liên kết phải bắt đầu bằng http:// hoặc https://</string>
     <string name="err_fix_fields">Vui lòng sửa các trường bị lỗi</string>
     <string name="saved">Đã lưu gói đăng ký</string>
@@ -236,7 +237,8 @@
     <string name="share_report_line">• %1$s: %2$s (%3$s)</string>
     <string name="add_demo_data">Thêm 5 gói mẫu</string>
     <string name="add_demo_data_desc">Dữ liệu minh họa có ghi chú “mẫu”, có thể xóa bất cứ lúc nào</string>
-    <string name="demo_added">Đã thêm 5 gói mẫu</string>
+    <string name="demo_added">Đã thêm %1$d gói mẫu</string>
+    <string name="demo_exists">Bộ dữ liệu này đã có đủ gói mẫu</string>
     <string name="demo_note">Gói mẫu để demo</string>
     <string name="clear_data">Xóa dữ liệu của bộ đang dùng</string>
     <string name="clear_confirm_title">Xóa dữ liệu của bộ “%1$s”?</string>

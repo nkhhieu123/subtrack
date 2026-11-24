@@ -74,6 +74,33 @@ class BillingMathTest {
         assertEquals(LocalDate.of(2026, 2, 28), BillingMath.advance(LocalDate.of(2026, 1, 31), BillingCycle.MONTHLY))
     }
 
+    /** BUG-03: gói ngày 31 không được trôi vĩnh viễn về 28 sau tháng 2. */
+    @Test
+    fun advance_keepsBillingDay() {
+        val feb = BillingMath.advance(LocalDate.of(2027, 1, 31), BillingCycle.MONTHLY, 31)
+        assertEquals(LocalDate.of(2027, 2, 28), feb)
+        assertEquals(LocalDate.of(2027, 3, 31), BillingMath.advance(feb, BillingCycle.MONTHLY, 31))
+        assertEquals(LocalDate.of(2027, 5, 31), BillingMath.advance(feb, BillingCycle.QUARTERLY, 31))
+        assertEquals(LocalDate.of(2028, 2, 29), BillingMath.advance(LocalDate.of(2027, 2, 28), BillingCycle.YEARLY, 29))
+        assertEquals(LocalDate.of(2027, 3, 7), BillingMath.advance(feb, BillingCycle.WEEKLY, 31))
+    }
+
+    /** BUG-01: sắp theo chi phí tháng phải quy đổi tiền tệ trước khi so. */
+    @Test
+    fun priceSort_convertsCurrency() {
+        fun s(name: String, amount: Double, c: Currency) = Subscription(name = name, amount = amount, currency = c,
+            cycle = BillingCycle.MONTHLY, nextPaymentDate = today, category = Category.OTHER)
+        val rates = mapOf(Currency.USD to 1.0, Currency.VND to 25_000.0)
+        val subs = listOf(s("VND", 59_000.0, Currency.VND), s("USD", 10.0, Currency.USD), s("Không tỷ giá", 5.0, Currency.EUR))
+        val sorted = subs.sortedWith(com.nhom4.subtrack.ui.list.ListViewModel.comparator(
+            com.nhom4.subtrack.ui.list.SortOrder.PRICE, Currency.VND, rates))
+        assertEquals(listOf("USD", "VND", "Không tỷ giá"), sorted.map { it.name })
+        // Chưa có tỷ giá: gói khác tiền tệ xếp cuối, không làm hỏng thứ tự
+        val noRates = subs.sortedWith(com.nhom4.subtrack.ui.list.ListViewModel.comparator(
+            com.nhom4.subtrack.ui.list.SortOrder.PRICE, Currency.VND, null))
+        assertEquals("VND", noRates.first().name)
+    }
+
     @Test
     fun renewalLevel_matchesIndicatorRules() {
         assertEquals(RenewalLevel.SOON, BillingMath.renewalLevel(today.plusDays(7), today))

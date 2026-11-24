@@ -156,8 +156,12 @@ class SettingsViewModel(private val app: SubTrackApp) : ViewModel() {
                 Subscription(name = "Duolingo Super", amount = 1_190_000.0, currency = Currency.VND, cycle = BillingCycle.YEARLY,
                     nextPaymentDate = today.plusMonths(8), category = Category.EDUCATION, platforms = listOf(Platform.ANDROID), notes = note),
             )
-            runCatching { demo.forEach { repo.save(it) } }
-                .onSuccess { msg(R.string.demo_added) }
+            // Bấm lại không tạo gói trùng: bỏ qua gói mẫu đã có cùng tên trong bộ đang dùng
+            val existing = repo.subscriptions.value.orEmpty().map { it.name.lowercase() }.toSet()
+            val toAdd = demo.filter { it.name.lowercase() !in existing }
+            if (toAdd.isEmpty()) { msg(R.string.demo_exists); return@launch }
+            runCatching { toAdd.forEach { repo.save(it) } }
+                .onSuccess { msg(R.string.demo_added, toAdd.size) }
                 .onFailure { msg(R.string.save_failed) }
         }
     }
