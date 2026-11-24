@@ -52,6 +52,7 @@ import com.nhom4.subtrack.domain.BillingMath
 import com.nhom4.subtrack.ui.AppViewModels
 import com.nhom4.subtrack.ui.EmptyState
 import com.nhom4.subtrack.ui.LoadingState
+import com.nhom4.subtrack.ui.RatesBar
 import com.nhom4.subtrack.ui.SectionHeader
 import com.nhom4.subtrack.ui.SelectField
 import com.nhom4.subtrack.ui.formatMoney
@@ -66,6 +67,7 @@ private val SLICE_COLORS = listOf(
 @Composable
 fun ReportsScreen(vm: ReportsViewModel = viewModel(factory = AppViewModels.Factory)) {
     val state by vm.state.collectAsStateWithLifecycle()
+    val rates by vm.rates.collectAsStateWithLifecycle()
 
     Scaffold(
         contentWindowInsets = WindowInsets(0),
@@ -91,6 +93,16 @@ fun ReportsScreen(vm: ReportsViewModel = viewModel(factory = AppViewModels.Facto
                     onSelect = vm::setCurrency,
                     modifier = Modifier.fillMaxWidth(),
                 )
+            }
+            item { RatesBar(rates, vm::syncRates) }
+            if (state.converted) {
+                item {
+                    Text(
+                        stringResource(R.string.reports_converted_note, state.currency.code),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
             }
             if (state.excludedCount > 0) {
                 item {

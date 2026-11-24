@@ -27,10 +27,14 @@ object BillingMath {
     fun quarterlyFromMonthly(monthly: Double) = monthly * 3.0
     fun yearlyFromMonthly(monthly: Double) = monthly * 12.0
 
-    /** Tổng chi phí tháng của các gói đang hoạt động bằng [currency]. */
-    fun totalMonthly(subs: List<Subscription>, currency: Currency): Double =
-        subs.filter { it.status == SubscriptionStatus.ACTIVE && it.currency == currency }
-            .sumOf { monthlyCost(it.amount, it.cycle) }
+    /** Chi phí tháng của gói quy về [to]; null nếu khác tiền tệ mà chưa có tỷ giá. */
+    fun monthlyIn(sub: Subscription, to: Currency, perUsd: Map<Currency, Double>?): Double? =
+        CurrencyConverter.convert(monthlyCost(sub.amount, sub.cycle), sub.currency, to, perUsd)
+
+    /** Tổng chi phí tháng của các gói đang hoạt động quy về [currency]; bỏ qua gói chưa quy đổi được. */
+    fun totalMonthly(subs: List<Subscription>, currency: Currency, perUsd: Map<Currency, Double>? = null): Double =
+        subs.filter { it.status == SubscriptionStatus.ACTIVE }
+            .sumOf { monthlyIn(it, currency, perUsd) ?: 0.0 }
 
     fun advance(date: LocalDate, cycle: BillingCycle): LocalDate = when (cycle) {
         BillingCycle.WEEKLY -> date.plusWeeks(1)
@@ -64,28 +68,19 @@ object BillingMath {
     }
 
     /**
-     * Đọc số tiền người dùng nhập. VND không có phần thập phân nên bỏ mọi dấu
-     * phân cách; USD/EUR chấp nhận cả "4.99" và "4,99". Trả về null nếu sai.
+     * Đọc số tiền theo quy ước vi-VN dùng chung cho mọi tiền tệ: "." tách nghìn,
+     * "," trước phần lẻ (1–2 chữ số, VND không có phần lẻ). "9.99" bị từ chối
+     * thay vì đoán. Trả về null nếu sai.
      */
     fun parseAmount(input: String, currency: Currency): Double? {
         val raw = input.trim().replace(" ", "")
-        if (raw.isEmpty() || !raw.matches(Regex("""[\d.,]+"""))) return null
-        // Dấu cuối cùng theo sau bởi 1–2 chữ số là dấu thập phân (không áp dụng cho VND)
-        val lastSep = maxOf(raw.lastIndexOf('.'), raw.lastIndexOf(','))
-        val hasDecimal = currency != Currency.VND && lastSep >= 0 && raw.length - lastSep - 1 in 1..2
-        val intPart = if (hasDecimal) raw.substring(0, lastSep) else raw
-        val fraction = if (hasDecimal) raw.substring(lastSep + 1) else ""
-        if (!isGroupedInteger(intPart)) return null
-        val digits = intPart.replace(".", "").replace(",", "")
+        val m = Regex("""(\d+(?:\.\d{3})*)(?:,(\d{1,2}))?""").matchEntire(raw) ?: return null
+        val intPart = m.groupValues[1]
+        val fraction = m.groupValues[2]
+        if (intPart.contains('.') && intPart.substringBefore('.').length > 3) return null
+        if (fraction.isNotEmpty() && currency == Currency.VND) return null
+        val digits = intPart.replace(".", "")
         return (if (fraction.isEmpty()) digits else "$digits.$fraction").toDoubleOrNull()
-    }
-
-    /** "1234", "1.234", "1,234,567" hợp lệ; "1.2.3" thì không. */
-    private fun isGroupedInteger(s: String): Boolean {
-        if (s.isEmpty()) return false
-        val groups = s.split('.', ',')
-        if (groups.size == 1) return groups[0].all { it.isDigit() }
-        return groups[0].length in 1..3 && groups.drop(1).all { it.length == 3 } && groups.all { g -> g.all { it.isDigit() } }
     }
 
     fun isValidUrl(url: String): Boolean =

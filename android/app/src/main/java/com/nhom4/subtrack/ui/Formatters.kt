@@ -18,7 +18,7 @@ private val dateFormatter = DateTimeFormatter.ofPattern("dd/MM/yyyy", Vietnamese
 
 fun formatDate(date: LocalDate): String = date.format(dateFormatter)
 
-/** 260000 VND → "260.000 ₫"; 9.99 USD → "9,99 US$" theo quy ước vi-VN. */
+/** Mọi tiền tệ theo quy ước vi-VN ("." tách nghìn, "," phần lẻ): 260000 VND → "260.000 ₫"; 1234.5 USD → "1.234,50 US$". */
 fun formatMoney(amount: Double, currency: Currency): String {
     val nf = NumberFormat.getCurrencyInstance(VietnameseLocale)
     nf.currency = java.util.Currency.getInstance(currency.code)
@@ -27,10 +27,10 @@ fun formatMoney(amount: Double, currency: Currency): String {
     return nf.format(amount)
 }
 
-/** Số nhập vào ô số tiền khi sửa (không ký hiệu tiền tệ). */
+/** Số điền vào ô số tiền khi sửa, cùng quy ước với [formatMoney] nhưng không tách nghìn: "260000", "9,99". */
 fun formatAmountInput(amount: Double, currency: Currency): String =
-    if (currency == Currency.VND) amount.toLong().toString()
-    else String.format(Locale.US, "%.2f", amount)
+    if (currency == Currency.VND) Math.round(amount).toString()
+    else String.format(VietnameseLocale, "%.2f", amount)
 
 fun formatPercent(value: Double): String = String.format(VietnameseLocale, "%.1f", value)
 

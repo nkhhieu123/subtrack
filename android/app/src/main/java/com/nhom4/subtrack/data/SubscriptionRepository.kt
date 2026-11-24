@@ -15,7 +15,27 @@ import java.time.LocalDate
  * - Sau mỗi lần ghi (thêm/sửa/xóa) thì đọc lại và phát dữ liệu mới qua [subscriptions], [tags];
  *   màn hình nào đang theo dõi StateFlow sẽ tự vẽ lại.
  */
-class SubscriptionRepository(private val db: SubTrackDatabase) {
+class SubscriptionRepository(db: SubTrackDatabase) {
+
+    /** Đổi được khi chuyển bộ dữ liệu ([switchTo]); mọi ViewModel vẫn giữ cùng repository này. */
+    @Volatile
+    private var db: SubTrackDatabase = db
+
+    /**
+     * Chuyển sang CSDL của bộ dữ liệu khác rồi đọc lại.
+     * shortcut: thao tác đang chạy dở trên CSDL cũ có thể lỗi "database closed" (đã bọc runCatching ở UI); nếu gặp thật thì thêm Mutex.
+     */
+    suspend fun switchTo(newDb: SubTrackDatabase) = withContext(Dispatchers.IO) {
+        val old = db
+        db = newDb
+        old.close()
+        refresh()
+    }
+
+    /** Toàn bộ dữ liệu gốc của bộ đang dùng (để xuất CSV/QR). */
+    suspend fun snapshot(): com.nhom4.subtrack.domain.Dataset = withContext(Dispatchers.IO) {
+        com.nhom4.subtrack.domain.Dataset(db.getSubscriptions(), db.getTags(), db.getPayments())
+    }
 
     private val _subscriptions = MutableStateFlow<List<Subscription>?>(null)
     /** null = đang tải lần đầu. */
