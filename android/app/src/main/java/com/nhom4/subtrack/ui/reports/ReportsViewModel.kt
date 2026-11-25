@@ -3,7 +3,7 @@ package com.nhom4.subtrack.ui.reports
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.nhom4.subtrack.SubTrackApp
-import com.nhom4.subtrack.data.Category
+import com.nhom4.subtrack.data.CategoryKey
 import com.nhom4.subtrack.data.Currency
 import com.nhom4.subtrack.data.Payment
 import com.nhom4.subtrack.data.PaymentKind
@@ -23,7 +23,7 @@ import java.time.LocalDate
 import java.time.YearMonth
 
 data class Slice(val label: String?, val monthly: Double, val share: Double)
-data class CategoryTotal(val category: Category, val monthly: Double, val share: Double)
+data class CategoryTotal(val category: CategoryKey, val monthly: Double, val share: Double)
 
 data class ReportsUiState(
     val loading: Boolean = true,
@@ -44,7 +44,7 @@ data class ReportsUiState(
     /** 6 tháng gần nhất, cũ → mới. */
     val actualMonths: List<Pair<YearMonth, Double>> = emptyList(),
     /** 12 tháng gần nhất, giảm dần. */
-    val actualCategories: List<Pair<Category, Double>> = emptyList(),
+    val actualCategories: List<Pair<CategoryKey, Double>> = emptyList(),
 ) {
     val weekly get() = BillingMath.weeklyFromMonthly(monthly)
     val quarterly get() = BillingMath.quarterlyFromMonthly(monthly)
@@ -95,7 +95,7 @@ class ReportsViewModel(app: SubTrackApp) : ViewModel() {
                 costs.take(5).map { (s, m) -> Slice(s.name, m, share(m)) } +
                     costs.drop(5).sumOf { it.second }.let { Slice(null, it, share(it)) }
             }
-            val categories = costs.groupBy { it.first.category }
+            val categories = costs.groupBy { it.first.categoryKey }
                 .map { (c, list) -> list.sumOf { it.second }.let { CategoryTotal(c, it, share(it)) } }
                 .sortedByDescending { it.monthly }
 

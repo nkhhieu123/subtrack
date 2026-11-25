@@ -239,6 +239,31 @@ private fun EditForm(vm: EditViewModel, modifier: Modifier) {
                 onSelect = { c -> vm.update { it.copy(category = c) } },
                 modifier = Modifier.fillMaxWidth(),
             )
+            if (f.category == Category.OTHER) {
+                OutlinedTextField(
+                    value = f.customCategory,
+                    onValueChange = { v -> vm.update { it.copy(customCategory = v.take(MAX_CUSTOM_CATEGORY)) } },
+                    label = { Text(stringResource(R.string.field_custom_category)) },
+                    placeholder = { Text(stringResource(R.string.field_custom_category_placeholder)) },
+                    isError = e.customCategory != null,
+                    supportingText = e.customCategory?.let { { Text(stringResource(it)) } },
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences, imeAction = ImeAction.Done),
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                val suggestions = vm.customCategorySuggestions.filter { !it.equals(f.customCategory.trim(), ignoreCase = true) }
+                if (suggestions.isNotEmpty()) {
+                    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        suggestions.forEach { name ->
+                            FilterChip(
+                                selected = false,
+                                onClick = { vm.update { it.copy(customCategory = name) } },
+                                label = { Text(name) },
+                            )
+                        }
+                    }
+                }
+            }
             Text(stringResource(R.string.field_status), style = MaterialTheme.typography.labelLarge)
             SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
                 SubscriptionStatus.entries.forEachIndexed { i, s ->

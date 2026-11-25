@@ -3,6 +3,7 @@ package com.nhom4.subtrack.domain
 import com.nhom4.subtrack.R
 import com.nhom4.subtrack.data.BillingCycle
 import com.nhom4.subtrack.data.Category
+import com.nhom4.subtrack.data.CategoryKey
 import com.nhom4.subtrack.data.Currency
 import com.nhom4.subtrack.data.Payment
 import com.nhom4.subtrack.data.PaymentKind
@@ -10,6 +11,7 @@ import com.nhom4.subtrack.data.Platform
 import com.nhom4.subtrack.data.Subscription
 import com.nhom4.subtrack.data.SubscriptionStatus
 import com.nhom4.subtrack.data.Tag
+import com.nhom4.subtrack.ui.edit.MAX_CUSTOM_CATEGORY
 import com.nhom4.subtrack.ui.formatAmountInput
 import com.nhom4.subtrack.ui.formatDate
 import com.nhom4.subtrack.ui.label
@@ -36,7 +38,7 @@ class DatasetCsv(private val text: (Int) -> String) {
         appendSection(SEC_SUBS, SUB_COLS, d.subscriptions.sortedBy { it.name.lowercase() }.map { s ->
             listOf(
                 s.id.toString(), s.name, formatAmountInput(s.amount, s.currency), s.currency.code,
-                text(s.cycle.label), formatDate(s.nextPaymentDate), text(s.category.label), text(s.status.label),
+                text(s.cycle.label), formatDate(s.nextPaymentDate), categoryCell(s.categoryKey), text(s.status.label),
                 s.remindDaysBefore?.toString().orEmpty(),
                 s.tagIds.mapNotNull { tagName[it] }.joinToString(LIST_SEP),
                 s.platforms.joinToString(LIST_SEP) { text(it.label) },
@@ -48,7 +50,7 @@ class DatasetCsv(private val text: (Int) -> String) {
         append("\r\n")
         appendSection(SEC_PAYMENTS, PAY_COLS, d.payments.map { p ->
             listOf(
-                p.subscriptionId?.toString().orEmpty(), p.subscriptionName, text(p.category.label),
+                p.subscriptionId?.toString().orEmpty(), p.subscriptionName, categoryCell(p.categoryKey),
                 formatDate(p.periodDate), text(p.kind.label), p.paidDate?.let(::formatDate).orEmpty(),
                 if (p.amount != null && p.currency != null) formatAmountInput(p.amount, p.currency) else "",
                 p.currency?.code.orEmpty(),
@@ -109,13 +111,15 @@ class DatasetCsv(private val text: (Int) -> String) {
                         val currency = Currency.entries.first { it.code.equals(cell(COL_CURRENCY), true) }
                         val amount = BillingMath.parseAmount(cell(COL_AMOUNT), currency)?.takeIf { it > 0 } ?: error("số tiền")
                         val code = cell(COL_ID).toLongOrNull()?.takeIf { it > 0 && it !in subs } ?: (-nextId++)
+                        val category = categoryOf(cell(COL_CATEGORY))
                         subs[code] = Subscription(
                             id = code, name = name,
                             amount = amount,
                             currency = currency,
                             cycle = match(cell(COL_CYCLE), BillingCycle.entries) { it.label }!!,
                             nextPaymentDate = date(cell(COL_NEXT))!!,
-                            category = match(cell(COL_CATEGORY), Category.entries, { it.key }) { it.label } ?: Category.OTHER,
+                            category = category.category,
+                            customCategory = category.customName,
                             status = match(cell(COL_STATUS), SubscriptionStatus.entries) { it.label } ?: SubscriptionStatus.ACTIVE,
                             remindDaysBefore = cell(COL_REMIND).toIntOrNull()?.takeIf { it >= 0 },
                             tagIds = split(cell(COL_TAGS)).map { tagId(it) }.distinct(),
@@ -134,10 +138,12 @@ class DatasetCsv(private val text: (Int) -> String) {
                         val period = date(cell(COL_PERIOD))!!
                         if (subId != null && !seenPeriods.add(subId to period)) error("trùng kỳ")
                         val currency = Currency.entries.firstOrNull { it.code.equals(cell(COL_PAY_CURRENCY), true) }
+                        val category = categoryOf(cell(COL_PAY_CATEGORY))
                         payments += Payment(
                             subscriptionId = subId,
                             subscriptionName = cell(COL_PAY_NAME).ifEmpty { error("thiếu tên gói") },
-                            category = match(cell(COL_PAY_CATEGORY), Category.entries, { it.key }) { it.label } ?: Category.OTHER,
+                            category = category.category,
+                            customCategory = category.customName,
                             periodDate = period,
                             kind = match(cell(COL_KIND), PaymentKind.entries) { it.label }!!,
                             paidDate = date(cell(COL_PAID_DATE)),
@@ -153,6 +159,14 @@ class DatasetCsv(private val text: (Int) -> String) {
         require(subs.isNotEmpty()) { "Không có gói hợp lệ" }
         return ParsedDataset(Dataset(subs.values.toList(), tags.values.toList(), payments), skipped)
     }
+
+    /** Ô "Danh mục": tên tự nhập (khi chọn "Khác") hoặc nhãn cố định. */
+    private fun categoryCell(k: CategoryKey) = k.customName ?: text(k.category.label)
+
+    /** Nhãn cố định → danh mục đó; chữ khác → "Khác" kèm tên tự nhập; rỗng → "Khác". */
+    private fun categoryOf(value: String): CategoryKey =
+        match(value, Category.entries, { it.key }) { it.label }?.let { CategoryKey(it) }
+            ?: CategoryKey.of(Category.OTHER, value.take(MAX_CUSTOM_CATEGORY))
 
     /** Khớp theo nhãn hiển thị, tên enum hoặc khóa; rỗng/không khớp → null. */
     private fun <E : Enum<E>> match(value: String, entries: List<E>, key: (E) -> String = { it.name }, label: (E) -> Int): E? =

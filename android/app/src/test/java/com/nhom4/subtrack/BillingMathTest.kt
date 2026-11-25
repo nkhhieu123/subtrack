@@ -2,6 +2,7 @@ package com.nhom4.subtrack
 
 import com.nhom4.subtrack.data.BillingCycle
 import com.nhom4.subtrack.data.Category
+import com.nhom4.subtrack.data.CategoryKey
 import com.nhom4.subtrack.data.Currency
 import com.nhom4.subtrack.data.Subscription
 import com.nhom4.subtrack.data.SubscriptionStatus
@@ -248,7 +249,7 @@ class BillingMathTest {
             paid(LocalDate.of(2026, 11, 4), 100.0),
         )
         assertEquals(
-            listOf(Category.ENTERTAINMENT to 100.0, Category.MUSIC to 30.0),
+            listOf(CategoryKey(Category.ENTERTAINMENT) to 100.0, CategoryKey(Category.MUSIC) to 30.0),
             SpendMath.byCategory(p, Currency.VND, LocalDate.of(2025, 12, 1), LocalDate.of(2026, 12, 1)),
         )
     }

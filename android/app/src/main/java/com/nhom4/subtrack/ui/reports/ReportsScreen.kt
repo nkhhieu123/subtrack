@@ -55,6 +55,7 @@ import com.nhom4.subtrack.ui.LoadingState
 import com.nhom4.subtrack.ui.RatesBar
 import com.nhom4.subtrack.ui.SectionHeader
 import com.nhom4.subtrack.ui.SelectField
+import com.nhom4.subtrack.ui.categoryName
 import com.nhom4.subtrack.ui.formatMoney
 import com.nhom4.subtrack.ui.formatPercent
 import com.nhom4.subtrack.ui.label
@@ -165,7 +166,7 @@ private fun ActualCard(state: ReportsUiState) {
         if (state.actualCategories.isNotEmpty()) {
             Spacer(Modifier.height(12.dp))
             Text(stringResource(R.string.actual_by_category), style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
-            state.actualCategories.forEach { (c, v) -> line(stringResource(c.label), v) }
+            state.actualCategories.forEach { (c, v) -> line(categoryName(c), v) }
         }
     }
 }
@@ -271,14 +272,14 @@ private fun CategoryCard(state: ReportsUiState) {
         state.categories.forEachIndexed { i, c ->
             if (i > 0) Spacer(Modifier.height(12.dp))
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(stringResource(c.category.label), Modifier.weight(1f), fontWeight = FontWeight.Medium)
+                Text(categoryName(c.category), Modifier.weight(1f), fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 Text(formatMoney(c.monthly, state.currency), style = MaterialTheme.typography.bodyMedium)
             }
             Spacer(Modifier.height(6.dp))
             LinearProgressIndicator(
                 progress = { (c.share / 100).toFloat() },
                 modifier = Modifier.fillMaxWidth().height(8.dp).clip(RoundedCornerShape(4.dp)),
-                color = Color(c.category.color),
+                color = Color(c.category.category.color),
                 trackColor = MaterialTheme.colorScheme.surfaceVariant,
                 drawStopIndicator = {},
             )

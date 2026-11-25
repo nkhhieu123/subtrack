@@ -49,21 +49,57 @@ class SubTrackDatabaseTest {
         }
 
     @Test
-    fun freshInstall_hasV5Schema() {
+    fun freshInstall_hasV6Schema() {
         val helper = SubTrackDatabase(context)
         val db = helper.writableDatabase
-        assertEquals(5, userVersion(db))
-        assertTrue(columns(db, "payments").isNotEmpty())
+        assertEquals(6, userVersion(db))
+        assertTrue("custom_category" in columns(db, "payments"))
         val cols = columns(db, "subscriptions")
-        assertTrue("snoozed_until" in cols && "last_notified_on" in cols && "billing_day" in cols)
+        assertTrue("snoozed_until" in cols && "last_notified_on" in cols && "billing_day" in cols && "custom_category" in cols)
         helper.close()
     }
 
-    /** v4 → v5 chỉ thêm cột billing_day; gói cũ lấy ngày gốc theo ngày thanh toán tiếp theo. */
     @Test
-    fun upgradeFromV4_addsBillingDay() {
+    fun billingDay_savedAndUsedWhenAdvancing() {
+        val helper = SubTrackDatabase(context)
+        val jan31 = LocalDate.of(2026, 1, 31)
+        val id = helper.upsertSubscription(sub(next = jan31))
+        assertEquals(31, helper.getSubscriptions().single().billingDay)
+        // Lùi về 28/02 (như sau một kỳ) thì ngày gốc vẫn là 31
+        helper.updateNextPaymentDate(id, LocalDate.of(2026, 2, 28))
+        val s = helper.getSubscriptions().single()
+        val bm = com.nhom4.subtrack.domain.BillingMath
+        assertEquals(31, bm.billingDayOf(s))
+        assertEquals(LocalDate.of(2026, 3, 31), bm.advance(s.nextPaymentDate, s.cycle, bm.billingDayOf(s)))
+        helper.close()
+    }
+
+    @Test
+    fun customCategory_savedOnlyForOther_andSnapshottedInPayment() {
+        val helper = SubTrackDatabase(context)
+        val id = helper.upsertSubscription(sub().copy(category = Category.OTHER, customCategory = "  Thể thao "))
+        val s = helper.getSubscriptions().single()
+        assertEquals(CategoryKey(Category.OTHER, "Thể thao"), s.categoryKey)
+        helper.insertPayment(payment(id).copy(category = s.category, customCategory = s.customCategory))
+        assertEquals("Thể thao", helper.getPayments().single().categoryKey.customName)
+        // Đổi sang danh mục cố định thì tên tự nhập bị bỏ
+        helper.upsertSubscription(s.copy(category = Category.MUSIC))
+        assertNull(helper.getSubscriptions().single().customCategory)
+        helper.close()
+    }
+
+    /** v4 → v6: thêm billing_day (null = lấy theo ngày thanh toán tiếp theo) và custom_category. */
+    @Test
+    fun upgradeFromV4_addsBillingDayAndCustomCategory() = upgradeFromV4OrV5(4)
+
+    /** v5 (đã có billing_day) → v6: chỉ thêm custom_category, giữ ngày gốc đã lưu. */
+    @Test
+    fun upgradeFromV5_addsCustomCategory() = upgradeFromV4OrV5(5)
+
+    private fun upgradeFromV4OrV5(version: Int) {
         val old = SQLiteDatabase.openOrCreateDatabase(context.getDatabasePath(SubTrackDatabase.DB_NAME), null)
-        old.execSQL(subsV1.replace("updated_at INTEGER NOT NULL)", "updated_at INTEGER NOT NULL, snoozed_until INTEGER, last_notified_on INTEGER)"))
+        val v5Cols = if (version >= 5) ", billing_day INTEGER" else ""
+        old.execSQL(subsV1.replace("updated_at INTEGER NOT NULL)", "updated_at INTEGER NOT NULL, snoozed_until INTEGER, last_notified_on INTEGER$v5Cols)"))
         old.execSQL("CREATE TABLE tags (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL COLLATE NOCASE UNIQUE, color INTEGER NOT NULL)")
         old.execSQL("CREATE TABLE subscription_tags (subscription_id INTEGER NOT NULL, tag_id INTEGER NOT NULL, PRIMARY KEY (subscription_id, tag_id))")
         old.execSQL(
@@ -75,14 +111,17 @@ class SubTrackDatabaseTest {
             "INSERT INTO subscriptions (id,name,amount,currency,billing_cycle,next_payment_date,category,status,created_at,updated_at) " +
                 "VALUES (7,'Netflix',260000,'VND','MONTHLY',${d1.toEpochDay()},'entertainment','ACTIVE',1,1)"
         )
-        old.execSQL("PRAGMA user_version = 4")
+        if (version >= 5) old.execSQL("UPDATE subscriptions SET billing_day = 31")
+        old.execSQL("PRAGMA user_version = $version")
         old.close()
 
         val helper = SubTrackDatabase(context)
         val s = helper.getSubscriptions().single()
         assertEquals("Netflix", s.name)
-        assertEquals(null, s.billingDay)
-        assertEquals(5, userVersion(helper.readableDatabase))
+        assertEquals(if (version >= 5) 31 else null, s.billingDay)
+        assertEquals(CategoryKey(Category.ENTERTAINMENT), s.categoryKey)
+        assertEquals(6, userVersion(helper.readableDatabase))
+        assertTrue("custom_category" in columns(helper.readableDatabase, "payments"))
         helper.close()
     }
 

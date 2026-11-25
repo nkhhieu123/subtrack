@@ -70,6 +70,7 @@ import com.nhom4.subtrack.ui.EmptyState
 import com.nhom4.subtrack.ui.LoadingState
 import com.nhom4.subtrack.ui.RatesBar
 import com.nhom4.subtrack.ui.formatMoney
+import com.nhom4.subtrack.ui.categoryName
 import com.nhom4.subtrack.ui.label
 
 val TAG_COLORS = listOf(
@@ -147,10 +148,10 @@ fun OrganizeScreen(vm: OrganizeViewModel = viewModel(factory = AppViewModels.Fac
                     if (state.excludedCount > 0) item { Hint(stringResource(R.string.other_currency_note, state.excludedCount)) }
                     if (state.categories.isEmpty()) {
                         item { EmptyState(Icons.Outlined.Category, stringResource(R.string.organize_nothing), null) }
-                    } else items(state.categories, key = { it.category.key }) { row ->
+                    } else items(state.categories, key = { it.category.category.key + "/" + it.category.customName.orEmpty() }) { row ->
                         RowCard(
-                            dot = Color(row.category.color),
-                            title = stringResource(row.category.label),
+                            dot = Color(row.category.category.color),
+                            title = categoryName(row.category),
                             subtitle = pluralStringResource(R.plurals.count_subscriptions, row.count, row.count),
                         ) {
                             Text(

@@ -10,6 +10,7 @@ import com.nhom4.subtrack.data.SubscriptionStatus
 import com.nhom4.subtrack.data.Tag
 import com.nhom4.subtrack.domain.BillingMath
 import com.nhom4.subtrack.domain.TextSearch
+import com.nhom4.subtrack.ui.categoryName
 import com.nhom4.subtrack.ui.label
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -107,7 +108,7 @@ class ListViewModel(private val app: SubTrackApp) : ViewModel() {
             add(sub.name)
             sub.tagIds.mapNotNullTo(this) { tags[it]?.name }
             sub.platforms.mapTo(this) { app.getString(it.label) }
-            add(app.getString(sub.category.label))
+            add(app.categoryName(sub.categoryKey))
         }
         return haystack.any { TextSearch.matches(it, q) }
     }

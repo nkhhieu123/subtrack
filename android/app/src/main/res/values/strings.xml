@@ -116,6 +116,10 @@
     <string name="field_amount_placeholder_vnd">Ví dụ: 260000</string>
     <string name="field_amount_placeholder_other">Ví dụ: 9,99</string>
     <string name="field_currency">Tiền tệ</string>
+    <string name="field_custom_category">Tên danh mục</string>
+    <string name="field_custom_category_placeholder">Ví dụ: Thể thao, Sức khỏe</string>
+    <string name="err_custom_category_required">Nhập tên danh mục</string>
+    <string name="err_custom_category_too_long">Tên danh mục tối đa 30 ký tự</string>
     <string name="field_cycle">Chu kỳ thanh toán</string>
     <string name="field_next_date">Ngày thanh toán tiếp theo</string>
     <string name="field_category">Danh mục</string>

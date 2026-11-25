@@ -56,12 +56,12 @@ object BillingMath {
     /** Tên gói tối đa (form và nhập CSV dùng chung). */
     const val MAX_NAME_LENGTH = 60
 
-    /** Ngày thanh toán đầu tiên không trước [today], tính từ [date] theo chu kỳ. */
-    fun nextOnOrAfter(date: LocalDate, cycle: BillingCycle, today: LocalDate): LocalDate {
+    /** Ngày thanh toán đầu tiên không trước [today], tính từ [date] theo chu kỳ và ngày gốc [billingDay]. */
+    fun nextOnOrAfter(date: LocalDate, cycle: BillingCycle, today: LocalDate, billingDay: Int = date.dayOfMonth): LocalDate {
         var d = date
         var guard = 0
         while (d.isBefore(today) && guard < 10_000) {
-            d = advance(d, cycle)
+            d = advance(d, cycle, billingDay)
             guard++
         }
         return d

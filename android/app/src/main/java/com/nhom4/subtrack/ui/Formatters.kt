@@ -1,11 +1,16 @@
 package com.nhom4.subtrack.ui
 
+import android.content.Context
 import androidx.annotation.StringRes
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.res.stringResource
 import com.nhom4.subtrack.R
 import com.nhom4.subtrack.data.BillingCycle
 import com.nhom4.subtrack.data.Category
+import com.nhom4.subtrack.data.CategoryKey
 import com.nhom4.subtrack.data.Currency
 import com.nhom4.subtrack.data.Platform
+import com.nhom4.subtrack.data.Subscription
 import com.nhom4.subtrack.data.SubscriptionStatus
 import java.text.NumberFormat
 import java.time.LocalDate
@@ -31,6 +36,15 @@ fun formatMoney(amount: Double, currency: Currency): String {
 fun formatAmountInput(amount: Double, currency: Currency): String =
     if (currency == Currency.VND) Math.round(amount).toString()
     else String.format(VietnameseLocale, "%.2f", amount)
+
+/** Tên danh mục để hiển thị: tên tự nhập (khi chọn "Khác") hoặc nhãn cố định. */
+@Composable
+fun categoryName(key: CategoryKey): String = key.customName ?: stringResource(key.category.label)
+
+@Composable
+fun categoryName(sub: Subscription): String = categoryName(sub.categoryKey)
+
+fun Context.categoryName(key: CategoryKey): String = key.customName ?: getString(key.category.label)
 
 fun formatPercent(value: Double): String = String.format(VietnameseLocale, "%.1f", value)
 

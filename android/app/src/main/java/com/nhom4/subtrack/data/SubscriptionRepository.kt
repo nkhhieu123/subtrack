@@ -104,7 +104,8 @@ class SubscriptionRepository(db: SubTrackDatabase) {
                 val amount = amountOf(sub)
                 val pid = db.insertPayment(
                     Payment(
-                        subscriptionId = id, subscriptionName = sub.name, category = sub.category, periodDate = period,
+                        subscriptionId = id, subscriptionName = sub.name, category = sub.category,
+                        customCategory = sub.categoryKey.customName, periodDate = period,
                         kind = kind, paidDate = paidDate, amount = amount, currency = if (amount != null) sub.currency else null,
                     )
                 )

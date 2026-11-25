@@ -59,6 +59,23 @@ class DatasetCsvTest {
     )
 
     @Test
+    fun customCategory_roundTripsThroughCategoryColumn() {
+        val gym = Subscription(
+            id = 3, name = "Gym", amount = 300_000.0, currency = Currency.VND, cycle = BillingCycle.MONTHLY,
+            nextPaymentDate = day, category = Category.OTHER, customCategory = "Thể thao",
+        )
+        val pay = Payment(subscriptionId = 3, subscriptionName = "Gym", category = Category.OTHER, customCategory = "Thể thao",
+            periodDate = day.minusMonths(1), kind = PaymentKind.PAID, paidDate = day.minusMonths(1), amount = 300_000.0, currency = Currency.VND)
+        val text = csv.write(Dataset(listOf(gym), emptyList(), listOf(pay)))
+        val d = csv.read(text).data
+        assertEquals(com.nhom4.subtrack.data.CategoryKey(Category.OTHER, "Thể thao"), d.subscriptions.single().categoryKey)
+        assertEquals("Thể thao", d.payments.single().categoryKey.customName)
+        // Nhãn cố định vẫn ra danh mục cố định, không thành tên tự nhập
+        val ent = csv.read(csv.write(sample)).data.subscriptions.first { it.category == Category.ENTERTAINMENT }
+        assertNull(ent.customCategory)
+    }
+
+    @Test
     fun roundTrip_keepsEverything() {
         val parsed = csv.read(csv.write(sample))
         assertEquals(0, parsed.skipped)
